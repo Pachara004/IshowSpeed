@@ -15,6 +15,7 @@ class _RegisterPageState extends State<RegisterPage> {
   // Controllers for form fields
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -149,6 +150,27 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           const SizedBox(height: 16),
+                          // Email
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: Icon(Icons.email),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value!.isEmpty) {
+                                return 'Please enter your Email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
                           // Password
                           TextFormField(
                             controller: _passwordController,
@@ -255,6 +277,27 @@ class _RegisterPageState extends State<RegisterPage> {
                             validator: (value) {
                               if (value!.isEmpty) {
                                 return 'Please enter your phone number';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Email
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: Icon(Icons.email),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value!.isEmpty) {
+                                return 'Please enter your Email';
                               }
                               return null;
                             },
