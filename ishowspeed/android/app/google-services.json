@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "227749665731",
+    "firebase_url": "https://lshowspeedth-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "lshowspeedth",
+    "storage_bucket": "lshowspeedth.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:227749665731:android:9b2649c65b464a9ba67b76",
+        "android_client_info": {
+          "package_name": "com.example.ishowspeed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPodyNCWy1lde0Hkn8wgFLE03pTSxULOY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
