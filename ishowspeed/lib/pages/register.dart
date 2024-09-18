@@ -22,35 +22,109 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _vehicleController = TextEditingController(); // for rider
   String _userType = 'User'; // Default user type
 
-  Future<void> _register() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        // Create user in Firebase Authentication
-        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-          email: _phoneController.text + "@ishowspeed.com", // Dummy email for phone
-          password: _passwordController.text,
-        );
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _addressController.dispose();
+    _vehicleController.dispose();
+    super.dispose();
+  }
 
-        // Save additional user information in Firestore
-        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+Future<void> _register() async {
+  if (_formKey.currentState?.validate() ?? false) {
+    try {
+      final email = _emailController.text;
+      final password = _passwordController.text;
+      
+      if (email.isEmpty || password.isEmpty) {
+        throw Exception('Email or password cannot be empty.');
+      }
+
+      final auth = _auth;
+      final firestore = _firestore;
+      if (auth == null || firestore == null) {
+        throw Exception('Auth or Firestore instance is not initialized.');
+      }
+
+      UserCredential userCredential = await auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final uid = userCredential.user?.uid;
+      if (uid == null) {
+        throw Exception('User ID is null.');
+      }
+
+      print('User registered with UID: $uid'); // Add this line
+
+      final userType = _userType;
+      if (userType == 'User') {
+        await firestore.collection('users').doc(uid).set({
+          'uid': uid,
           'phone': _phoneController.text,
           'name': _usernameController.text,
-          'userType': _userType,
-          if (_userType == 'Rider') 'vehicle': _vehicleController.text,
-          if (_userType == 'User') 'address': _addressController.text,
+          'address': _addressController.text,
+          'userType': 'User',
         });
-
-        // Navigate to a different page after successful registration
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration successful!')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+      } else if (userType == 'Rider') {
+        await firestore.collection('riders').doc(uid).set({
+          'uid': uid,
+          'phone': _phoneController.text,
+          'name': _usernameController.text,
+          'vehicle': _vehicleController.text,
+          'userType': 'Rider',
+        });
       }
+
+      print('User data saved to Firestore'); // Add this line
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Success'),
+            content: Text('Registration successful!'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                  Navigator.pushReplacementNamed(context, '/login'); // Navigate to login page
+                },
+                child: Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+
+    } catch (e) {
+      print('Error during registration: $e'); // Add this line
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text('Error: $e'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                },
+                child: Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -87,17 +161,18 @@ class _RegisterPageState extends State<RegisterPage> {
                     width: 2, // Border width
                   ),
                 ),
-                child: const Column(
-                  children: [
-                    TabBar(
-                      indicatorColor: Colors.white, // Custom TabBar indicator color
-                      labelColor: Colors.white, // Color for selected tab label
-                      unselectedLabelColor: Colors.grey, // Color for unselected tab labels
-                      tabs: [
-                        Tab(text: 'User'),
-                        Tab(text: 'Rider'),
-                      ],
-                    ),
+                child: TabBar(
+                  indicatorColor: Colors.white, // Custom TabBar indicator color
+                  labelColor: Colors.white, // Color for selected tab label
+                  unselectedLabelColor: Colors.grey, // Color for unselected tab labels
+                  onTap: (index) {
+                    setState(() {
+                      _userType = index == 0 ? 'User' : 'Rider'; // Set userType based on tab
+                    });
+                  },
+                  tabs: const [
+                    Tab(text: 'User'),
+                    Tab(text: 'Rider'),
                   ],
                 ),
               ),
@@ -110,129 +185,22 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: ListView(
                         children: [
                           // Username
-                          TextFormField(
-                            controller: _usernameController,
-                            decoration: InputDecoration(
-                              labelText: 'Username',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.account_circle),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your Username';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildTextField('Username', _usernameController, Icons.account_circle),
                           const SizedBox(height: 16),
                           // Phone Number
-                          TextFormField(
-                            controller: _phoneController,
-                            decoration: InputDecoration(
-                              labelText: 'Phone',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.phone),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your phone number';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildTextField('Phone', _phoneController, Icons.phone, inputType: TextInputType.phone),
                           const SizedBox(height: 16),
                           // Email
-                          TextFormField(
-                            controller: _emailController,
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.email),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your Email';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildTextField('Email', _emailController, Icons.email, inputType: TextInputType.emailAddress),
                           const SizedBox(height: 16),
                           // Password
-                          TextFormField(
-                            controller: _passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.lock),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value!.isEmpty || value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildPasswordField('Password', _passwordController),
                           const SizedBox(height: 16),
                           // Confirm Password
-                          TextFormField(
-                            controller: _confirmPasswordController,
-                            decoration: InputDecoration(
-                              labelText: 'Confirm Password',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.lock),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value != _passwordController.text) {
-                                return 'Passwords do not match';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildPasswordField('Confirm Password', _confirmPasswordController, _passwordController),
                           const SizedBox(height: 16),
                           // Address Field for User
-                          TextFormField(
-                            controller: _addressController,
-                            decoration: InputDecoration(
-                              labelText: 'Address',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.location_on),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your address';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
+                          _buildTextField('Address', _addressController, Icons.location_on),
                         ],
                       ),
                     ),
@@ -242,129 +210,22 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: ListView(
                         children: [
                           // Username
-                          TextFormField(
-                            controller: _usernameController,
-                            decoration: InputDecoration(
-                              labelText: 'Username',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.account_circle),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your Username';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildTextField('Username', _usernameController, Icons.account_circle),
                           const SizedBox(height: 16),
                           // Phone Number
-                          TextFormField(
-                            controller: _phoneController,
-                            decoration: InputDecoration(
-                              labelText: 'Phone',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.phone),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your phone number';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildTextField('Phone', _phoneController, Icons.phone, inputType: TextInputType.phone),
                           const SizedBox(height: 16),
                           // Email
-                          TextFormField(
-                            controller: _emailController,
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.email),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your Email';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildTextField('Email', _emailController, Icons.email, inputType: TextInputType.emailAddress),
                           const SizedBox(height: 16),
                           // Password
-                          TextFormField(
-                            controller: _passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.lock),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value!.isEmpty || value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildPasswordField('Password', _passwordController),
                           const SizedBox(height: 16),
                           // Confirm Password
-                          TextFormField(
-                            controller: _confirmPasswordController,
-                            decoration: InputDecoration(
-                              labelText: 'Confirm Password',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.lock),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value != _passwordController.text) {
-                                return 'Passwords do not match';
-                              }
-                              return null;
-                            },
-                          ),
+                          _buildPasswordField('Confirm Password', _confirmPasswordController, _passwordController),
                           const SizedBox(height: 16),
                           // Vehicle Registration Number Field for Rider
-                          TextFormField(
-                            controller: _vehicleController,
-                            decoration: InputDecoration(
-                              labelText: 'Vehicle Registration Number',
-                              filled: true,
-                              fillColor: Colors.white,
-                              prefixIcon: Icon(Icons.directions_car),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter your vehicle registration number';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
+                          _buildTextField('Vehicle Registration Number', _vehicleController, Icons.directions_car),
                         ],
                       ),
                     ),
@@ -378,7 +239,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   onPressed: _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC809), // Set button background color
-                    fixedSize: Size(350, 50), // Set button width and height
+                    fixedSize: const Size(350, 50), // Set button width and height
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15), // Set corner radius to 15
                     ),
@@ -399,6 +260,54 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
+    );
+  }
+
+  // Helper method to create a text field
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType inputType = TextInputType.text}) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+      keyboardType: inputType,
+      validator: (value) {
+        if (value!.isEmpty) {
+          return 'Please enter your $label';
+        }
+        return null;
+      },
+    );
+  }
+
+  // Helper method to create a password field
+  Widget _buildPasswordField(String label, TextEditingController controller, [TextEditingController? matchingController]) {
+    return TextFormField(
+      controller: controller,
+      obscureText: true, // Hide text
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white,
+        prefixIcon: const Icon(Icons.lock),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+      validator: (value) {
+        if (value!.isEmpty) {
+          return 'Please enter your password';
+        } else if (matchingController != null && value != matchingController.text) {
+          return 'Passwords do not match';
+        }
+        return null;
+      },
     );
   }
 }
