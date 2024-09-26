@@ -38,6 +38,10 @@ class _LoginPageState extends State<LoginPage> {
             MaterialPageRoute(builder: (context) => RiderHomePage()),
           );
         }
+        print('User: $userQuery');
+        print('User Query Count: ${userQuery.docs.length}');
+        print('User Type: $userType');
+
       } else {
         // แสดงข้อความเมื่อข้อมูลเข้าสู่ระบบไม่ถูกต้อง
         _showErrorDialog('Invalid email or password');
