@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ishowspeed/pages/User/profile.dart'; // Ensure the path is correct
+import 'package:ishowspeed/pages/User/history.dart';
+import 'package:ishowspeed/pages/User/profile.dart'; // ตรวจสอบให้แน่ใจว่าเส้นทางถูกต้อง
 
 class UserHomePage extends StatefulWidget {
   @override
@@ -8,36 +9,37 @@ class UserHomePage extends StatefulWidget {
 }
 
 class _UserHomePageState extends State<UserHomePage> {
-  int _selectedIndex = 0; // Index to track the selected tab
-  User? _currentUser; // Store the current user
+  int _selectedIndex = 0; // ตัวแปรติดตามแท็บที่เลือก
+  User? _currentUser; // เก็บผู้ใช้ปัจจุบัน
 
   @override
   void initState() {
     super.initState();
-    // Listen to auth state changes
+    // ฟังการเปลี่ยนแปลงสถานะการยืนยันตัวตน
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       setState(() {
-        _currentUser = user; // Update the current user state
+        _currentUser = user; // อัปเดตสถานะผู้ใช้ปัจจุบัน
       });
     });
   }
 
-  // List of pages corresponding to each tab
+  // รายการหน้าที่สอดคล้องกับแท็บแต่ละแท็บ
   final List<Widget> _pages = [
-    UserDashboard(), // User Dashboard with the Product List
-    ProfilePage(),   // Profile Page
-    Center(child: Text('Shipping History')), // Placeholder for Shipping History Page
+    UserDashboard(), // แดชบอร์ดผู้ใช้ที่มีรายการผลิตภัณฑ์
+    ProfilePage(), // หน้าโปรไฟล์
+  
+
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF890E1C), // Set background color
+      backgroundColor: const Color(0xFF890E1C), // ตั้งค่าสีพื้นหลัง
       appBar: AppBar(
-        backgroundColor: const Color(0xFF890E1C), // Set AppBar color
+        backgroundColor: const Color(0xFF890E1C), // ตั้งค่าสี AppBar
         automaticallyImplyLeading: false,
       ),
-      body: _pages[_selectedIndex], // Display the selected page
+      body: _pages[_selectedIndex], // แสดงหน้าที่เลือก
 
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF890E1C),
@@ -60,8 +62,8 @@ class _UserHomePageState extends State<UserHomePage> {
         unselectedItemColor: Colors.grey,
         onTap: (index) {
           setState(() {
-            _selectedIndex = index; // Update the selected index
-            print('Selected Index: $_selectedIndex'); // Debug print
+            _selectedIndex = index; // อัปเดตดัชนีที่เลือก
+            print('Selected Index: $_selectedIndex'); // พิมพ์ข้อมูลเพื่อดีบัก
           });
         },
       ),
@@ -69,73 +71,173 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 }
 
-// UserDashboard widget
 class UserDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    return Center(
+    return Container(
+      color: const Color(0xFF890E1C), // Set background color to maroon
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start, // Align items to the top
         children: [
-          const SizedBox(height: 20), // Add top spacing
-
-          // Product List Container
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFC809), // Yellow background
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: const Center(
+                      child: Text(
+                        'Product List',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text(
+                              'Products you send:',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          ProductItem(
+                            name: 'iShowSpeed Shirt',
+                            shipper: 'Thorkell',
+                            recipient: 'Tawan',
+                            imageUrl: 'assets/images/red_shirt.png',
+                          ),
+                          const SizedBox(height: 120),
+                          const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text(
+                              'Products you must receive:',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          ProductItem(
+                            name: 'iShowSpeed Shirt',
+                            shipper: 'Thorkell',
+                            recipient: 'Tawan',
+                            imageUrl: 'assets/images/black_shirt.png',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Container(
-            width: 350, // Set width
-            color: const Color(0xFFFFC809), // Background color
-            padding: const EdgeInsets.symmetric(vertical: 10), // Add vertical spacing
-            child: const Center( // Center the text
-              child: Text(
-                'Product List',
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton(
+              onPressed: () {
+                // Add product functionality
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFC809),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                "Add Product",
                 style: TextStyle(
+                  fontWeight: FontWeight.w800,
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black, // Text color
                 ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // User ID Container
-          Container(
-            width: 350, // Set width
-            height: 550, // Set height
-            color: const Color(0xFFFFC809), // Background color
-            child: Center(
-              child: Text(
-                'User ID: ${user?.uid ?? 'Not logged in'}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black, // Text color
-                ),
+  // ProductItem widget ที่อยู่ภายใน UserDashboard
+  Widget ProductItem({
+    required String name,
+    required String shipper,
+    required String recipient,
+    required String imageUrl,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFAB000D),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0), // เพิ่ม Padding ที่นี่
+            child: Image.asset(
+              imageUrl,
+              width:74,
+              height:80,
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(9.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Name: $name',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    'Shipper: $shipper',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    'Recipient: $recipient',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
               ),
             ),
           ),
-
-          const SizedBox(height: 20), // Add bottom spacing
-
-          // Add Product Button
-          ElevatedButton(
-            onPressed: () {
-              // Functionality to add product
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC809),
-              fixedSize: const Size(350, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton(
+              onPressed: () {
+                // Detail button functionality
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFC809),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            ),
-            child: const Text(
-              "Add Product",
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 24,
-                color: Color.fromARGB(255, 0, 0, 0),
-              ),
+              child: const Text('Detail'),
             ),
           ),
         ],
