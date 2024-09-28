@@ -11,6 +11,7 @@ class ProfilePage extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        print("Auth state changed: ${snapshot.connectionState}");
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -36,6 +37,7 @@ class ProfilePage extends StatelessWidget {
 
         User user = snapshot.data!; // Current user
         String uid = user.uid;
+        print("Logged in user UID: $uid");
 
         return Scaffold(
           backgroundColor: const Color(0xFF890E1C),
