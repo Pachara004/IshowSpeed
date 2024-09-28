@@ -1,6 +1,8 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ishowspeed/pages/login.dart';
 
 class ProfilePage extends StatelessWidget {
   @override
@@ -138,10 +140,30 @@ class ProfilePage extends StatelessWidget {
 
   void _logout(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.signOut(); // Sign out the user
+      // วิธี fallback เพื่อตรวจสอบการเชื่อมต่อ
+      bool isConnected = true;
+      try {
+        var connectivityResult = await (Connectivity().checkConnectivity());
+        isConnected = connectivityResult != ConnectivityResult.none;
+      } catch (e) {
+        print('Could not check connectivity: $e');
+      }
+
+      if (!isConnected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No internet connection')),
+        );
+        return;
+      }
+
+      await FirebaseAuth.instance.signOut(); 
       print('User logged out successfully');
-      // นำทางไปยังหน้าล็อกอิน
-      Navigator.of(context).pushReplacementNamed('/login');
+      
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (Route<dynamic> route) => false,
+      );
+
     } catch (e) {
       print('Error logging out: $e');
       ScaffoldMessenger.of(context).showSnackBar(
