@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 
 class RegisterPage extends StatefulWidget {
@@ -21,6 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
   String _userType = 'User'; // Track user type based on selected tab
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  File? _profileImage;
 
   @override
   void dispose() {
@@ -33,6 +39,42 @@ class _RegisterPageState extends State<RegisterPage> {
     _vehicleController.dispose();
     super.dispose();
   }
+Future<void> _pickImage() async {
+    final picker = ImagePicker();
+
+    // Try to pick an image from the gallery
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    // If an image is picked, update the state
+    if (pickedFile != null) {
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No image selected.')),
+      );
+    }
+  }
+
+Future<String?> _uploadProfileImage(String uid) async {
+  if (_profileImage == null) return null;
+
+  try {
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('profile_images')
+        .child('$uid.jpg');
+    await ref.putFile(_profileImage!);
+    final downloadUrl = await ref.getDownloadURL();
+    return downloadUrl;
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to upload profile image: $e')),
+    );
+    return null;
+  }
+}
 
   Future<void> _register() async {
   if (_passwordController.text == _confirmPasswordController.text) {
@@ -45,6 +87,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
       // รับ uid ของผู้ใช้ที่ถูกสร้าง
       String uid = userCredential.user!.uid;
+
+      // Upload profile image
+      String? profileImageUrl = await _uploadProfileImage(uid);
 
       // สร้างเอกสารใหม่ใน Firestore พร้อมข้อมูลผู้ใช้
       await _firestore.collection('users').doc(uid).set({
@@ -129,8 +174,24 @@ class _RegisterPageState extends State<RegisterPage> {
                   ],
                 ),
               ),
+              // Image Picker
+              GestureDetector(
+                onTap: _pickImage,
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: _profileImage != null
+                      ? FileImage(_profileImage!)
+                      : null,
+                  child: _profileImage == null
+                      ? const Icon(Icons.camera_alt, size: 50, color: Colors.white)
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 20),
               Expanded(
                 child: TabBarView(
+                  
                   children: [
                     // User Tab
                     Padding(
