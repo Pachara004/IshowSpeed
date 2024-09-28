@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ishowspeed/pages/User/history.dart';
 import 'package:ishowspeed/pages/User/profile.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserHomePage extends StatefulWidget {
   @override
@@ -184,89 +189,140 @@ class UserDashboard extends StatelessWidget {
   }
 
   // Method for showing the add product dialog
-  void _showAddProductDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => _buildAddProductDialog(context),
-    );
+void _showAddProductDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) => _buildAddProductDialog(context),
+  );
+}
+
+// Widget method for building the add product dialog
+Widget _buildAddProductDialog(BuildContext context) {
+  final _formKey = GlobalKey<FormState>();
+  String? _productName,
+      _productDetails,
+      _numberOfProducts,
+      _shippingAddress,
+      _recipientName,
+      _recipientPhone;
+  String? _imageUrl; // สำหรับเก็บ URL ของภาพ
+
+  // ตัวแปรสำหรับเลือกภาพ
+  final ImagePicker _picker = ImagePicker();
+  XFile? _imageFile; // สำหรับเก็บภาพที่เลือก
+
+  Future<void> _uploadImage() async {
+    if (_imageFile != null) {
+      try {
+        // สร้าง reference ไปยัง Firebase Storage
+        final storageRef = FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
+        
+        // อัปโหลดภาพ
+        await storageRef.putFile(File(_imageFile!.path));
+
+        // รับ URL ของภาพ
+        _imageUrl = await storageRef.getDownloadURL();
+        print('Image uploaded: $_imageUrl');
+      } catch (e) {
+        print('Failed to upload image: $e');
+      }
+    }
   }
 
-  // Widget method for building the add product dialog
-  Widget _buildAddProductDialog(BuildContext context) {
-    final _formKey = GlobalKey<FormState>();
-    String? _productName,
-        _productDetails,
-        _numberOfProducts,
-        _shippingAddress,
-        _recipientName,
-        _recipientPhone;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SingleChildScrollView(
-        child: Container(
-          padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Color(0xFF890E1C),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.white,
-                  radius: 30,
-                  child: Icon(Icons.add_a_photo,
-                      color: Color(0xFF890E1C), size: 30),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Add a product photo',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
-                SizedBox(height: 16),
-                _buildTextField(
-                    'Product name', (value) => _productName = value),
-                _buildTextField(
-                    'Product details', (value) => _productDetails = value),
-                _buildTextField(
-                    'Number of products', (value) => _numberOfProducts = value),
-                _buildTextField(
-                    'Shipping address', (value) => _shippingAddress = value),
-                _buildTextField(
-                    'Recipient name', (value) => _recipientName = value),
-                _buildTextField('Recipient\'s phone number',
-                    (value) => _recipientPhone = value),
-                SizedBox(height: 16),
-                ElevatedButton(
-                  child: Text('Confirm'),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.black,
-                    backgroundColor: Color(0xFFFFC809),
-                    minimumSize: Size(double.infinity, 50),
-                  ),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      print('Product Name: $_productName');
-                      print('Product Details: $_productDetails');
-                      print('Number of Products: $_numberOfProducts');
-                      print('Shipping Address: $_shippingAddress');
-                      print('Recipient Name: $_recipientName');
-                      print('Recipient Phone: $_recipientPhone');
-                      Navigator.of(context).pop(); // Close the dialog
-                    }
+  return Dialog(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: SingleChildScrollView(
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Color(0xFF890E1C),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.white,
+                radius: 30,
+                child: IconButton(
+                  icon: Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
+                  onPressed: () async {
+                    // เลือกรูปภาพจากอุปกรณ์
+                    _imageFile = await _picker.pickImage(source: ImageSource.gallery);
                   },
                 ),
+              ),
+              SizedBox(height: 16),
+              const Text(
+                'Add a product photo',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              // แสดงรูปภาพที่เลือก
+              if (_imageUrl != null) ...[
+                SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8), // มุมมน
+                  child: Image.network(
+                    _imageUrl!,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ],
-            ),
+              SizedBox(height: 16),
+              _buildTextField('Product name', (value) => _productName = value),
+              _buildTextField('Product details', (value) => _productDetails = value),
+              _buildTextField('Number of products', (value) => _numberOfProducts = value),
+              _buildTextField('Shipping address', (value) => _shippingAddress = value),
+              _buildTextField('Recipient name', (value) => _recipientName = value),
+              _buildTextField('Recipient\'s phone number', (value) => _recipientPhone = value),
+              SizedBox(height: 16),
+              ElevatedButton(
+                child: Text('Confirm'),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  backgroundColor: Color(0xFFFFC809),
+                  minimumSize: Size(double.infinity, 50),
+                ),
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    _formKey.currentState!.save();
+                    
+                    // อัปโหลดภาพไปยัง Firebase Storage
+                    await _uploadImage();
+
+                    // สร้าง Map สำหรับข้อมูลผลิตภัณฑ์
+                    Map<String, dynamic> productData = {
+                      'productName': _productName,
+                      'productDetails': _productDetails,
+                      'numberOfProducts': _numberOfProducts,
+                      'shippingAddress': _shippingAddress,
+                      'recipientName': _recipientName,
+                      'recipientPhone': _recipientPhone,
+                      'imageUrl': _imageUrl, // เก็บ URL ของภาพ
+                    };
+
+                    // บันทึกข้อมูลผลิตภัณฑ์ไปยัง Firestore
+                    try {
+                      await FirebaseFirestore.instance.collection('Product').add(productData);
+                      print('Product added successfully!');
+                      Navigator.of(context).pop(); // Close the dialog
+                    } catch (e) {
+                      print('Failed to add product: $e');
+                    }
+                  }
+                },
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Method for building a text field
   Widget _buildTextField(String label, Function(String?) onSave) {
