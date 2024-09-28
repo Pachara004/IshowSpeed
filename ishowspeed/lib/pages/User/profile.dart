@@ -140,7 +140,8 @@ class ProfilePage extends StatelessWidget {
     try {
       await FirebaseAuth.instance.signOut(); // Sign out the user
       print('User logged out successfully');
-      Navigator.of(context).pushReplacementNamed('/login'); // Navigate to login page
+      // นำทางไปยังหน้าล็อกอิน
+      Navigator.of(context).pushReplacementNamed('/login');
     } catch (e) {
       print('Error logging out: $e');
       ScaffoldMessenger.of(context).showSnackBar(
