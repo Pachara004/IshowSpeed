@@ -58,7 +58,7 @@ Future<void> _pickImage() async {
   }
 
 Future<String?> _uploadProfileImage(String uid) async {
-  if (_profileImage == null) return null;
+  if (_profileImage == null) return null; // ตรวจสอบว่าเลือกภาพแล้ว
 
   try {
     final ref = FirebaseStorage.instance
@@ -76,6 +76,7 @@ Future<String?> _uploadProfileImage(String uid) async {
   }
 }
 
+
   Future<void> _register() async {
   if (_passwordController.text == _confirmPasswordController.text) {
     try {
@@ -89,10 +90,11 @@ Future<String?> _uploadProfileImage(String uid) async {
       String uid = userCredential.user!.uid;
 
       // Upload profile image
-      String? profileImageUrl = await _uploadProfileImage(uid);
+      String? profileImageUrl = await _uploadProfileImage(uid) ?? '';
 
       // สร้างเอกสารใหม่ใน Firestore พร้อมข้อมูลผู้ใช้
       await _firestore.collection('users').doc(uid).set({
+        'profileImage': profileImageUrl,
         'username': _usernameController.text,
         'phone': _phoneController.text,
         'email': _emailController.text,
