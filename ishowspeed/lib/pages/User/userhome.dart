@@ -117,16 +117,33 @@ class UserDashboard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          ProductItem(
-                            context: context, // ส่ง context ที่นี่
-                            name: 'iShowSpeed Shirt',
-                            shipper: 'Thorkell',
-                            recipient: 'Tawan',
-                            imageUrl: 'assets/images/red_shirt.png',
-                            details: 'Cotton clothing weighs 0.16 kilograms.',
-                            numberOfProducts: '2',
-                            shippingAddress: 'Big saolio',
-                            recipientPhone: '0123456789',
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance.collection('Product').snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return Center(child: CircularProgressIndicator());
+                              }
+
+                              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                return const Center(child: Text('No products available.'));
+                              }
+                              return Column(
+                                children: snapshot.data!.docs.map((doc) {
+                                  var data = doc.data() as Map<String, dynamic>;
+                                  return ProductItem(
+                                    context: context,
+                                    name: data['productName'],
+                                    shipper: data['shipper'] ?? 'Unknown', // ค่าปริยาย
+                                    recipient: data['recipientName'] ?? 'Unknown',
+                                    imageUrl: data['imageUrl'],
+                                    details: data['productDetails'] ?? 'No details available.',
+                                    numberOfProducts: data['numberOfProducts'],
+                                    shippingAddress: data['shippingAddress'],
+                                    recipientPhone: data['recipientPhone'],
+                                  );
+                                }).toList(),
+                              );
+                            },
                           ),
                           const SizedBox(height: 120),
                           const Padding(
@@ -140,16 +157,35 @@ class UserDashboard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          ProductItem(
-                            context: context,
-                            name: 'iShowSpeed Shirt',
-                            shipper: 'Thorkell',
-                            recipient: 'Tawan',
-                            imageUrl: 'assets/images/black_shirt.png',
-                            details: 'Cotton clothing weighs 0.16 kilograms.',
-                            numberOfProducts: '1',
-                            shippingAddress: 'Small saolio',
-                            recipientPhone: '9876543210',
+                           // ใช้ StreamBuilder สำหรับผลิตภัณฑ์ที่ต้องรับเช่นเดียวกัน
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance.collection('Product').snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return Center(child: CircularProgressIndicator());
+                              }
+
+                              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                return const Center(child: Text('No products available.'));
+                              }
+
+                              return Column(
+                                children: snapshot.data!.docs.map((doc) {
+                                  var data = doc.data() as Map<String, dynamic>;
+                                  return ProductItem(
+                                    context: context,
+                                    name: data['productName'],
+                                    shipper: data['shipper'] ?? 'Unknown', // ค่าปริยาย
+                                    recipient: data['recipientName'] ?? 'Unknown',
+                                    imageUrl: data['imageUrl'],
+                                    details: data['productDetails'] ?? 'No details available.',
+                                    numberOfProducts: data['numberOfProducts'],
+                                    shippingAddress: data['shippingAddress'],
+                                    recipientPhone: data['recipientPhone'],
+                                  );
+                                }).toList(),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -188,7 +224,7 @@ class UserDashboard extends StatelessWidget {
     );
   }
 
-  // Method for showing the add product dialog
+ // Method for showing the add product dialog
 void _showAddProductDialog(BuildContext context) {
   showDialog(
     context: context,
@@ -229,100 +265,129 @@ Widget _buildAddProductDialog(BuildContext context) {
     }
   }
 
-  return Dialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    child: SingleChildScrollView(
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Color(0xFF890E1C),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                backgroundColor: Colors.white,
-                radius: 30,
-                child: IconButton(
-                  icon: Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
-                  onPressed: () async {
-                    // เลือกรูปภาพจากอุปกรณ์
-                    _imageFile = await _picker.pickImage(source: ImageSource.gallery);
-                  },
-                ),
-              ),
-              SizedBox(height: 16),
-              const Text(
-                'Add a product photo',
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
-              // แสดงรูปภาพที่เลือก
-              if (_imageUrl != null) ...[
-                SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8), // มุมมน
-                  child: Image.network(
-                    _imageUrl!,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
+  return StatefulBuilder(
+    builder: (BuildContext context, StateSetter setState) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Color(0xFF890E1C),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 30,
+                    child: IconButton(
+                      icon: Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
+                      onPressed: () async {
+                        // เลือกรูปภาพจากอุปกรณ์
+                        _imageFile = await _picker.pickImage(source: ImageSource.gallery);
+                        if (_imageFile != null) {
+                          setState(() {}); // อัปเดต UI เพื่อแสดงรูปที่เลือก
+                        }
+                      },
+                    ),
                   ),
-                ),
-              ],
-              SizedBox(height: 16),
-              _buildTextField('Product name', (value) => _productName = value),
-              _buildTextField('Product details', (value) => _productDetails = value),
-              _buildTextField('Number of products', (value) => _numberOfProducts = value),
-              _buildTextField('Shipping address', (value) => _shippingAddress = value),
-              _buildTextField('Recipient name', (value) => _recipientName = value),
-              _buildTextField('Recipient\'s phone number', (value) => _recipientPhone = value),
-              SizedBox(height: 16),
-              ElevatedButton(
-                child: Text('Confirm'),
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.black,
-                  backgroundColor: Color(0xFFFFC809),
-                  minimumSize: Size(double.infinity, 50),
-                ),
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    _formKey.currentState!.save();
-                    
-                    // อัปโหลดภาพไปยัง Firebase Storage
-                    await _uploadImage();
+                  SizedBox(height: 16),
+                  const Text(
+                    'Add a product photo',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  // แสดงรูปภาพที่เลือก
+                  if (_imageFile != null) ...[
+                    SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        // แสดงภาพใน dialog ขนาดใหญ่เมื่อกดที่ภาพ
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return Dialog(
+                              child: Container(
+                                padding: EdgeInsets.all(8),
+                                child: Image.file(
+                                  File(_imageFile!.path),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 300, // หรือกำหนดความสูงตามที่ต้องการ
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8), // มุมมน
+                        child: Image.file(
+                          File(_imageFile!.path),
+                          width: 150,
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ],
+                  SizedBox(height: 16),
+                  _buildTextField('Product name', (value) => _productName = value),
+                  _buildTextField('Product details', (value) => _productDetails = value),
+                  _buildTextField('Number of products', (value) => _numberOfProducts = value),
+                  _buildTextField('Shipping address', (value) => _shippingAddress = value),
+                  _buildTextField('Recipient name', (value) => _recipientName = value),
+                  _buildTextField('Recipient\'s phone number', (value) => _recipientPhone = value),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    child: Text('Confirm'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      backgroundColor: Color(0xFFFFC809),
+                      minimumSize: Size(double.infinity, 50),
+                    ),
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        _formKey.currentState!.save();
+                        
+                        // อัปโหลดภาพไปยัง Firebase Storage
+                        await _uploadImage();
 
-                    // สร้าง Map สำหรับข้อมูลผลิตภัณฑ์
-                    Map<String, dynamic> productData = {
-                      'productName': _productName,
-                      'productDetails': _productDetails,
-                      'numberOfProducts': _numberOfProducts,
-                      'shippingAddress': _shippingAddress,
-                      'recipientName': _recipientName,
-                      'recipientPhone': _recipientPhone,
-                      'imageUrl': _imageUrl, // เก็บ URL ของภาพ
-                    };
+                        // สร้าง Map สำหรับข้อมูลผลิตภัณฑ์
+                        Map<String, dynamic> productData = {
+                          'productName': _productName,
+                          'productDetails': _productDetails,
+                          'numberOfProducts': _numberOfProducts,
+                          'shippingAddress': _shippingAddress,
+                          'recipientName': _recipientName,
+                          'recipientPhone': _recipientPhone,
+                          'imageUrl': _imageUrl, // เก็บ URL ของภาพ
+                        };
 
-                    // บันทึกข้อมูลผลิตภัณฑ์ไปยัง Firestore
-                    try {
-                      await FirebaseFirestore.instance.collection('Product').add(productData);
-                      print('Product added successfully!');
-                      Navigator.of(context).pop(); // Close the dialog
-                    } catch (e) {
-                      print('Failed to add product: $e');
-                    }
-                  }
-                },
+                        // บันทึกข้อมูลผลิตภัณฑ์ไปยัง Firestore
+                        try {
+                          await FirebaseFirestore.instance.collection('Product').add(productData);
+                          print('Product added successfully!');
+                          Navigator.of(context).pop(); // Close the dialog
+                        } catch (e) {
+                          print('Failed to add product: $e');
+                        }
+                      }
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
-    ),
+      );
+    }
   );
 }
+
 
   // Method for building a text field
   Widget _buildTextField(String label, Function(String?) onSave) {
@@ -363,7 +428,7 @@ Widget _buildAddProductDialog(BuildContext context) {
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Image.asset(
+            child: Image.network(
               imageUrl,
               width: 74,
               height: 80,

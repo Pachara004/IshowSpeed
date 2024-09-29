@@ -182,8 +182,8 @@ void checkCurrentUser() async {
         return;
       }
 
-      // await FirebaseAuth.instance.signOut();
-      await Future.delayed(Duration(seconds: 1));
+      await FirebaseAuth.instance.signOut();
+      await Future.delayed(Duration(seconds: 3));
       print('User logged out successfully');
 
       Navigator.of(context).pushAndRemoveUntil(
