@@ -1,62 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:ishowspeed/pages/Rider/profilerider.dart';
 
-class RiderHomePage extends StatelessWidget {
+class RiderHomePage extends StatefulWidget {
+  @override
+  _RiderHomePageState createState() => _RiderHomePageState();
+}
+
+class _RiderHomePageState extends State<RiderHomePage> {
+  int _selectedIndex = 0; // ตัวแปรสำหรับติดตาม index ของ BottomNavigationBar
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF890E1C),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFC809),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Order List',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    OrderCard(context: context), // ส่ง context เข้าไป
-                  ],
-                ),
-              ),
-            ),
+      body: _selectedIndex == 0 ? _buildOrderList() : ProfileRiderPage(), // แสดงหน้า OrderList หรือ ProfileRiderPage ตาม index
+
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex, // กำหนด index ปัจจุบัน
+        backgroundColor: const Color(0xFF890E1C),
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white.withOpacity(0.6),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-          BottomNavigationBar(
-            backgroundColor: const Color(0xFF890E1C),
-            selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white.withOpacity(0.6),
-            items: [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index; // อัปเดต index เมื่อมีการเลือก
+          });
+        },
       ),
     );
   }
 
-  Widget OrderCard({required BuildContext context}) { // รับ BuildContext
+  Widget _buildOrderList() {
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFC809),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Order List',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  OrderCard(context: context), // ส่ง context เข้าไป
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget OrderCard({required BuildContext context}) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -68,8 +87,8 @@ class RiderHomePage extends StatelessWidget {
           Row(
             children: [
               Image.asset('assets/images/red_shirt.png', width: 90, height: 90),
-              SizedBox(width: 10),
-              Expanded(
+              const SizedBox(width: 10),
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -114,10 +133,10 @@ class RiderHomePage extends StatelessWidget {
                 builder: (BuildContext context) => _productDetailDialog(context), // ใช้ฟังก์ชันที่สร้าง Dialog
               );
             },
-            child: Text(
+            child: const Text(
               'Click for detail',
               style: TextStyle(
-                color: const Color.fromARGB(255, 255, 17, 0),
+                color: Color.fromARGB(255, 255, 17, 0),
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
                 decoration: TextDecoration.underline,
@@ -154,52 +173,52 @@ class RiderHomePage extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 10),
-            Text(
+            const SizedBox(height: 10),
+            const Text(
               'Product Name : IShowSpeed Shirt',
               style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 18),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Center(
               child: Image.asset('assets/images/red_shirt.png', height: 150),
             ),
-            SizedBox(height: 10),
-            Text(
+            const SizedBox(height: 10),
+            const Text(
               'Product Details:',
               style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 20),
             ),
-            SizedBox(height: 5),
-            Text(
+            const SizedBox(height: 5),
+            const Text(
               'Cotton clothing weighs 0.16 kilograms.',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
-            Text(
+            const Text(
               'Number of products: 2',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
-            Text(
+            const Text(
               'Shipping address: Big saolao',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
-            Text(
+            const Text(
               'Shipper: Thorkell',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
-            Text(
+            const Text(
               'Recipient name: Mr. Tawan Gamer',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
-            Text(
+            const Text(
               'Recipient\'s phone number: 012345678',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
-            Spacer(),
+            const Spacer(),
             Center(
               child: ElevatedButton(
                 child: Text('Accept', style: TextStyle(color: Colors.black)),

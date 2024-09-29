@@ -4,12 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ishowspeed/pages/login.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfileRiderPage extends StatefulWidget {
   @override
-  _ProfilePageState createState() => _ProfilePageState();
+  _ProfileRiderPageState createState() => _ProfileRiderPageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfileRiderPageState extends State<ProfileRiderPage> {
   User? currentUser;
 
   @override

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ishowspeed/pages/register.dart';
@@ -15,6 +16,12 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _loginUser(String email, String password) async {
     try {
+      // ใช้ FirebaseAuth เพื่อเข้าสู่ระบบ
+    UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    
       // ตรวจสอบผู้ใช้ใน Firestore
       final userQuery = await FirebaseFirestore.instance
           .collection('users')

@@ -23,6 +23,7 @@ class _UserHomePageState extends State<UserHomePage> {
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       setState(() {
         _currentUser = user;
+        print("Current User: ${_currentUser?.email ?? 'No user logged in'}");
       });
     });
   }
@@ -533,7 +534,7 @@ Widget _buildAddProductDialog(BuildContext context) {
               ),
               SizedBox(height: 16),
               Center(
-                child: Image.asset(
+                child: Image.network(
                   imageUrl,
                   width: 200,
                   height: 200,
