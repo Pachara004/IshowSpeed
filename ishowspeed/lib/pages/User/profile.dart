@@ -4,14 +4,42 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ishowspeed/pages/login.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
+  @override
+  _ProfilePageState createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  User? currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    checkCurrentUser();
+  }
+
+void checkCurrentUser() async {
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  
+  if (currentUser != null) {
+    // Refresh the user to get the latest information from Firebase
+    await currentUser.reload();
+    setState(() {
+      currentUser = FirebaseAuth.instance.currentUser; // Update with fresh data
+    });
+    print("Current user UID: ${currentUser!.uid}");
+  } else {
+    print("No user is logged in.");
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     // StreamBuilder to listen for authentication state changes
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      // stream: FirebaseAuth.instance.authStateChanges(),
+      stream: FirebaseAuth.instance.idTokenChanges(),
       builder: (context, snapshot) {
-        print("Auth state changed: ${snapshot.connectionState}");
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -19,25 +47,11 @@ class ProfilePage extends StatelessWidget {
           return const Center(child: Text('Error fetching authentication status'));
         }
         if (!snapshot.hasData) {
-          return Scaffold(
-            backgroundColor: const Color(0xFF890E1C),
-            appBar: AppBar(
-              title: const Center(
-                child: Text(
-                  'Profile',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              backgroundColor: const Color(0xFFFFC809),
-              automaticallyImplyLeading: false,
-            ),
-            body: const Center(child: Text('User is not logged in')),
-          );
+          return _buildLoggedOutUI();
         }
 
-        User user = snapshot.data!; // Current user
-        String uid = user.uid;
-        print("Logged in user UID: $uid");
+        currentUser = snapshot.data;
+        String uid = currentUser!.uid;
 
         return Scaffold(
           backgroundColor: const Color(0xFF890E1C),
@@ -64,7 +78,6 @@ class ProfilePage extends StatelessWidget {
                 return const Center(child: Text('User does not exist'));
               }
 
-              // Get user data
               var userData = snapshot.data!.data() as Map<String, dynamic>;
               String profileImageUrl = userData['profileImage'] ?? '';
 
@@ -86,7 +99,8 @@ class ProfilePage extends StatelessWidget {
                             radius: 50,
                             backgroundImage: profileImageUrl.isNotEmpty
                                 ? NetworkImage(profileImageUrl)
-                                : const AssetImage('assets/images/default_profile.png'),
+                                : const AssetImage('assets/images/default_profile.png')
+                                    as ImageProvider,
                           ),
                           const SizedBox(width: 16),
                           Column(
@@ -129,6 +143,23 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  Widget _buildLoggedOutUI() {
+    return Scaffold(
+      backgroundColor: const Color(0xFF890E1C),
+      appBar: AppBar(
+        title: const Center(
+          child: Text(
+            'Profile',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+        backgroundColor: const Color(0xFFFFC809),
+        automaticallyImplyLeading: false,
+      ),
+      body: const Center(child: Text('User is not logged in')),
+    );
+  }
+
   Widget _buildProfileField(String text) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -142,30 +173,23 @@ class ProfilePage extends StatelessWidget {
 
   void _logout(BuildContext context) async {
     try {
-      // วิธี fallback เพื่อตรวจสอบการเชื่อมต่อ
-      bool isConnected = true;
-      try {
-        var connectivityResult = await (Connectivity().checkConnectivity());
-        isConnected = connectivityResult != ConnectivityResult.none;
-      } catch (e) {
-        print('Could not check connectivity: $e');
-      }
-
-      if (!isConnected) {
+      // Check for internet connectivity
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult == ConnectivityResult.none) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('No internet connection')),
         );
         return;
       }
 
-      await FirebaseAuth.instance.signOut(); 
+      // await FirebaseAuth.instance.signOut();
+      await Future.delayed(Duration(seconds: 1));
       print('User logged out successfully');
-      
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => LoginPage()),
         (Route<dynamic> route) => false,
       );
-
     } catch (e) {
       print('Error logging out: $e');
       ScaffoldMessenger.of(context).showSnackBar(
