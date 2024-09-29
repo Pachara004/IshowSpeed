@@ -286,7 +286,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                     backgroundColor: Colors.white,
                     radius: 30,
                     child: IconButton(
-                      icon: Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
+                      icon: const Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
                       onPressed: () async {
                         // เลือกรูปภาพจากอุปกรณ์
                         _imageFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -296,7 +296,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                       },
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   const Text(
                     'Add a product photo',
                     style: TextStyle(color: Colors.white, fontSize: 18),
@@ -335,14 +335,14 @@ Widget _buildAddProductDialog(BuildContext context) {
                       ),
                     ),
                   ],
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   _buildTextField('Product name', (value) => _productName = value),
                   _buildTextField('Product details', (value) => _productDetails = value),
                   _buildTextField('Number of products', (value) => _numberOfProducts = value),
                   _buildTextField('Shipping address', (value) => _shippingAddress = value),
                   _buildTextField('Recipient name', (value) => _recipientName = value),
                   _buildTextField('Recipient\'s phone number', (value) => _recipientPhone = value),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     child: Text('Confirm'),
                     style: ElevatedButton.styleFrom(
@@ -518,13 +518,13 @@ Widget _buildAddProductDialog(BuildContext context) {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.arrow_back, color: Colors.white),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   Expanded(
                     child: Text(
                       'Product Name: $name',
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold),
@@ -543,16 +543,16 @@ Widget _buildAddProductDialog(BuildContext context) {
               ),
               SizedBox(height: 16),
               Text('Product Details: $details',
-                  style: TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Colors.white)),
               Text('Number of products: $numberOfProducts',
-                  style: TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Colors.white)),
               Text('Shipping address: $shippingAddress',
-                  style: TextStyle(color: Colors.white)),
-              Text('Shipper: $shipper', style: TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Colors.white)),
+              Text('Shipper: $shipper', style: const TextStyle(color: Colors.white)),
               Text('Recipient name: $recipient',
-                  style: TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Colors.white)),
               Text('Recipient\'s phone number: $recipientPhone',
-                  style: TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Colors.white)),
             ],
           ),
         ),
