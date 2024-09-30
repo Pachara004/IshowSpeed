@@ -107,30 +107,6 @@ class UserDashboard extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: () {
-                // Add product functionality
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC809),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                "Add Product",
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 24,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
