@@ -1,7 +1,12 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:ishowspeed/pages/User/editprofile.dart';
+import 'package:path/path.dart';
 import 'package:ishowspeed/pages/login.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -11,6 +16,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   User? currentUser;
+  String? profileImageUrl;
 
   @override
   void initState() {
@@ -46,14 +52,16 @@ class _ProfilePageState extends State<ProfilePage> {
         return Scaffold(
           backgroundColor: const Color(0xFF890E1C),
           appBar: AppBar(
-            title: Center(
-              child: const Text(
-                'Profile',
+            title: const Center(
+              child: Text(
+                '',
                 style:
                     TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
               ),
             ),
-            backgroundColor: const Color(0xFFFFC809),
+            // backgroundColor: const Color(0xFFFFC809),
+            backgroundColor: const Color(0xFF890E1C),
+            automaticallyImplyLeading: false,
             elevation: 0,
           ),
           body: FutureBuilder<DocumentSnapshot>(
@@ -71,12 +79,17 @@ class _ProfilePageState extends State<ProfilePage> {
               String profileImageUrl = userData['profileImage'] ?? '';
 
               return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
                     Container(
-                      width: double.infinity,
-                      color: const Color(0xFFFFC809),
-                      padding: const EdgeInsets.all(16.0),
+                      width: double.maxFinite,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFC809), // สีของ Container
+                        borderRadius: BorderRadius.circular(20), // ปรับความโค้งของขอบ
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                       child: Column(
                         crossAxisAlignment:
                             CrossAxisAlignment.start, // จัดข้อความชิดซ้าย
@@ -85,17 +98,42 @@ class _ProfilePageState extends State<ProfilePage> {
                             crossAxisAlignment: CrossAxisAlignment
                                 .start, // จัดข้อความให้อยู่ด้านบนของ Row
                             children: [
-                              CircleAvatar(
-                                radius: 50,
-                                backgroundImage: profileImageUrl.isNotEmpty
-                                    ? NetworkImage(profileImageUrl)
-                                    : const AssetImage(
-                                            'assets/images/default_profile.png')
-                                        as ImageProvider,
+                              GestureDetector(
+                                onTap: () {
+                                  // เมื่อกดที่รูปภาพ จะเปิด Dialog เพื่อแสดงรูปแบบเต็ม
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return Dialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Container(
+                                          width: 300, // กำหนดขนาดของ dialog
+                                          height: 300,
+                                          decoration: BoxDecoration(
+                                            image: DecorationImage(
+                                              image: profileImageUrl.isNotEmpty
+                                                  ? NetworkImage(profileImageUrl)
+                                                  : const AssetImage('assets/images/default_profile.png')
+                                                      as ImageProvider,
+                                              fit: BoxFit.cover, // ปรับรูปให้ครอบคลุมพื้นที่
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundImage: profileImageUrl.isNotEmpty
+                                      ? NetworkImage(profileImageUrl)
+                                      : const AssetImage('assets/images/default_profile.png')
+                                          as ImageProvider,
+                                ),
                               ),
-                              const SizedBox(
-                                  width:
-                                      16), // เพิ่มระยะห่างระหว่างรูปโปรไฟล์กับข้อความ
+                              const SizedBox( width:25 ), // เพิ่มระยะห่างระหว่างรูปโปรไฟล์กับข้อความ
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment
                                     .start, // จัดข้อความชิดซ้าย
@@ -143,32 +181,38 @@ class _ProfilePageState extends State<ProfilePage> {
                                             const Text(
                                               'Personal Information',
                                               style: TextStyle(
-                                                fontSize: 18,
+                                                fontSize: 17,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                             TextButton(
+                                              // onPressed: () {
+                                              //   // เชื่อมไปยังหน้า EditProfilePage
+                                              //   Navigator.of(context).push(
+                                              //     MaterialPageRoute(
+                                              //       builder: (context) =>
+                                              //           EditProfilePage(),
+                                              //     ),
+                                              //   );
+                                              // },
                                               onPressed: () {
-                                                // เชื่อมไปยังหน้า EditProfilePage
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        EditProfilePage(),
-                                                  ),
-                                                );
+                                                _showEditProfileDialog(context, userData);
                                               },
                                               child: const Text(
                                                 'Edit',
                                                 style: TextStyle(
-                                                    color: Colors.red),
+                                                  fontSize: 19,
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.w800, // เพิ่มจุลภาคที่นี่
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
                                         _buildInfoRow('Full Name',
                                             userData['username'] ?? 'N/A'),
-                                        _buildInfoRow('Phone',
-                                            userData['phone'] ?? 'N/A'),
+                                        _buildInfoRow('Phone', 
+                                            formatPhoneNumber(userData['phone'])),
                                         _buildInfoRow('Email',
                                             userData['email'] ?? 'N/A'),
                                         _buildInfoRow('Address',
@@ -202,8 +246,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                 child: const Text(
                                   'Log out',
                                   style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.black), // สีข้อความเป็นสีดำ
+                                    fontSize: 20,
+                                    color: Colors.black, // สีข้อความเป็นสีดำ
+                                    fontWeight: FontWeight.w800, // เพิ่มความหนาของฟอนต์เป็น extra bold
+                                  ),
                                 ),
                               ),
                             ),
@@ -213,7 +259,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ],
                 ),
+                ),
               );
+              
             },
           ),
         );
@@ -228,11 +276,229 @@ class _ProfilePageState extends State<ProfilePage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-          Text(value, style: TextStyle(fontSize: 16)),
+          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,)),
         ],
       ),
     );
   }
+  String formatPhoneNumber(String? phoneNumber) {
+  // ตรวจสอบว่าหมายเลขโทรศัพท์ไม่เป็น null และมีความยาว 10 หลัก
+  if (phoneNumber != null && phoneNumber.length == 10) {
+    return '${phoneNumber.substring(0, 3)}-${phoneNumber.substring(3, 6)}-${phoneNumber.substring(6)}';
+  }
+  return 'N/A'; // ถ้าไม่ตรงตามเงื่อนไขให้คืนค่า 'N/A'
+}
+
+void _showEditProfileDialog(BuildContext context, Map<String, dynamic> userData) {
+  TextEditingController usernameController = TextEditingController(text: userData['username']);
+  TextEditingController phoneController = TextEditingController(text: userData['phone']);
+  TextEditingController emailController = TextEditingController(text: userData['email']);
+  TextEditingController addressController = TextEditingController(text: userData['address']);
+
+  String? profileImageUrl = userData['profileImage'];
+
+  showDialog(
+  context: context,
+  builder: (context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF890E1C), // เปลี่ยนสีพื้นหลังของ AlertDialog
+      title: const Center( // ใช้ Center เพื่อจัดตำแหน่งข้อความให้กึ่งกลาง
+        child: Text(
+          'Edit Profile',
+          style: TextStyle(color: Colors.white), // เปลี่ยนสีข้อความ
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+           Center( // ใช้ Center เพื่อจัดตำแหน่งให้กึ่งกลาง
+              child: GestureDetector(
+                onTap: () => _pickImage(context, (newImageUrl) {
+                  setState(() {
+                    profileImageUrl = newImageUrl; // อัปเดต profileImageUrl ด้วย URL ใหม่
+                  });
+                }), // ส่งฟังก์ชัน callback เพื่ออัปเดต profileImageUrl
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundImage: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                      ? NetworkImage(profileImageUrl!)
+                      : const AssetImage('assets/images/default_profile.png') as ImageProvider,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: usernameController,
+              decoration: InputDecoration(
+                labelText: ' ',
+                labelStyle: const TextStyle(color: Colors.black), // เปลี่ยนสีข้อความป้ายเป็นดำ
+                filled: true, // ทำให้พื้นหลังเต็ม
+                fillColor: Colors.white, // ตั้งค่าสีพื้นหลังเป็นสีขาว
+                border: OutlineInputBorder( // กำหนดขอบเขต
+                  borderRadius: BorderRadius.circular(15), // มุมมน
+                  borderSide: const BorderSide(color: Colors.grey), // สีของขอบ
+                ),
+                enabledBorder: OutlineInputBorder( // ขอบเมื่อไม่ถูกเลือก
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey), // สีของขอบ
+                ),
+                focusedBorder: OutlineInputBorder( // ขอบเมื่อถูกเลือก
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Color(0xFF890E1C)), // สีของขอบที่เลือก
+                ),
+              ),
+              style: const TextStyle(color: Colors.black), // เปลี่ยนสีข้อความเป็นดำ
+            ),
+
+            const SizedBox(height: 20),
+
+            TextFormField(
+              controller: phoneController,
+              decoration: InputDecoration(
+                labelText: ' ',
+                labelStyle: const TextStyle(color: Colors.black), // เปลี่ยนสีข้อความป้ายเป็นดำ
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Color(0xFF890E1C)),
+                ),
+              ),
+              style: const TextStyle(color: Colors.black),
+            ),
+
+            const SizedBox(height: 20),
+
+            TextFormField(
+              controller: emailController,
+              decoration: InputDecoration(
+                labelText: ' ',
+                labelStyle: const TextStyle(color: Colors.black), // เปลี่ยนสีข้อความป้ายเป็นดำ
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Color(0xFF890E1C)),
+                ),
+              ),
+              style: const TextStyle(color: Colors.black),
+            ),
+
+            const SizedBox(height: 20),
+
+            TextFormField(
+              controller: addressController,
+              decoration: InputDecoration(
+                labelText: ' ',
+                labelStyle: const TextStyle(color: Colors.black), // เปลี่ยนสีข้อความป้ายเป็นดำ
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Color(0xFF890E1C)),
+                ),
+              ),
+              style: const TextStyle(color: Colors.black),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('Cancel', style: TextStyle(color: Colors.white)), // เปลี่ยนสีข้อความ
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            // Update Firestore with new data
+            try {
+              User? user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .update({
+                  // Add profileImageUrl if it is updated
+                  'profileImage': profileImageUrl,
+                  'username': usernameController.text,
+                  'phone': phoneController.text,
+                  'email': emailController.text,
+                  'address': addressController.text,
+                });
+
+                // Update successful
+                Navigator.of(context).pop(); // ปิด Dialog หลังจากอัปเดตสำเร็จ
+                setState(() {}); // เรียก setState เพื่อ refresh หน้าจอ
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile updated successfully!')),
+                );
+              }
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to update profile: $e')),
+              );
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFC809), // เปลี่ยนสีพื้นหลังของปุ่ม
+          ),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  },
+);
+
+}
+void _pickImage(BuildContext context, Function(String) onImageSelected) async {
+  final ImagePicker _picker = ImagePicker();
+  final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+
+  if (image != null) {
+    // Upload the image to Firebase Storage and get the download URL
+    String imageUrl = await uploadImageToFirebase(image.path); // ฟังก์ชันที่คุณจะสร้างเพื่ออัปโหลดรูปภาพ
+
+    setState(() {
+      profileImageUrl = imageUrl; // อัปเดต profileImageUrl ด้วย URL ใหม่
+    });
+  }
+}
+
+Future<String> uploadImageToFirebase(String filePath) async {
+  File file = File(filePath);
+  String fileName = basename(file.path); // ใช้ basename ที่นี่
+  Reference storageRef = FirebaseStorage.instance.ref().child('profile_images/$fileName');
+
+  await storageRef.putFile(file);
+  return await storageRef.getDownloadURL(); // คืนค่า URL ของภาพที่อัปโหลด
+}
 
   void _logout(BuildContext context) async {
     try {
