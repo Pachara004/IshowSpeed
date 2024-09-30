@@ -78,6 +78,14 @@ Future<String?> _uploadProfileImage(String uid) async {
 
 
   Future<void> _register() async {
+    // ตรวจสอบความยาวของเบอร์โทร
+  if (_phoneController.text.length != 10) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Phone number must be 10 digits')),
+    );
+    return; // ออกจากฟังก์ชันหากเบอร์โทรไม่ครบ 10 ตัว
+  }
+  
   if (_passwordController.text == _confirmPasswordController.text) {
     try {
       // สร้างผู้ใช้ใหม่ด้วย Firebase Authentication
@@ -265,7 +273,7 @@ Future<String?> _uploadProfileImage(String uid) async {
     );
   }
 
-  // Text field with label and icon
+ // Text field with label and icon
   Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType inputType = TextInputType.text}) {
     return TextFormField(
       controller: controller,
@@ -282,6 +290,10 @@ Future<String?> _uploadProfileImage(String uid) async {
       validator: (value) {
         if (value!.isEmpty) {
           return 'Please enter your $label';
+        }
+        // ตรวจสอบความยาวของเบอร์โทร
+        if (label == 'Phone' && value.length != 10) {
+          return 'Phone number must be 10 digits';
         }
         return null;
       },
