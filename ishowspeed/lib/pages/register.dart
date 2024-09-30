@@ -5,7 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 
 class RegisterPage extends StatefulWidget {
@@ -85,7 +85,7 @@ Future<String?> _uploadProfileImage(String uid) async {
     );
     return; // ออกจากฟังก์ชันหากเบอร์โทรไม่ครบ 10 ตัว
   }
-  
+
   if (_passwordController.text == _confirmPasswordController.text) {
     try {
       // สร้างผู้ใช้ใหม่ด้วย Firebase Authentication

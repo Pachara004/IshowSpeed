@@ -50,18 +50,19 @@ class _ProfileRiderPageState extends State<ProfileRiderPage> {
 
         return Scaffold(
           backgroundColor: const Color(0xFF890E1C),
-          appBar: AppBar(
-            title: const Center(
-              child: Text(
-                '',
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(100.0), // ปรับความสูงที่นี่
+            child: AppBar(
+              title: const Center(
+                child: Text(
+                  '',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                ),
               ),
+              backgroundColor: const Color(0xFF890E1C),
+              automaticallyImplyLeading: false,
+              elevation: 0,
             ),
-            // backgroundColor: const Color(0xFFFFC809),
-            backgroundColor: const Color(0xFF890E1C),
-            automaticallyImplyLeading: false,
-            elevation: 0,
           ),
           body: FutureBuilder<DocumentSnapshot>(
             future:
