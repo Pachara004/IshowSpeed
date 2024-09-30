@@ -47,21 +47,32 @@ class _UserHomePageState extends State<UserHomePage> {
         backgroundColor: const Color(0xFF890E1C),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home, color: Colors.white),
+            icon: Icon(Icons.home_outlined, size: 30, color: Colors.white),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person, color: Colors.white),
+            icon: Icon(Icons.person_4, size: 30, color: Colors.white),
             label: 'Profile',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history, color: Colors.white),
+            icon: Icon(Icons.history, size: 30, color: Colors.white),
             label: 'Shipping History',
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Colors.yellowAccent, // สีที่เด่นขึ้นเมื่อเลือก
+        unselectedItemColor: Colors.grey[400], // สีที่ดูอ่อนลงเมื่อไม่ได้เลือก
+        selectedIconTheme: IconThemeData(size: 35, color: Colors.yellowAccent), // ขนาดและสีไอคอนเมื่อเลือก
+        unselectedIconTheme: IconThemeData(size: 30, color: Colors.grey[400]), // ขนาดและสีไอคอนเมื่อไม่ได้เลือก
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold, // น้ำหนักตัวอักษรหนาขึ้นเมื่อเลือก
+          fontSize: 14,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.normal, // น้ำหนักตัวอักษรเบาลงเมื่อไม่ได้เลือก
+          fontSize: 12,
+        ),
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;

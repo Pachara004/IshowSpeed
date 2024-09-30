@@ -16,23 +16,34 @@ class _RiderHomePageState extends State<RiderHomePage> {
       body: _selectedIndex == 0 ? _buildOrderList() : ProfileRiderPage(), // แสดงหน้า OrderList หรือ ProfileRiderPage ตาม index
 
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex, // กำหนด index ปัจจุบัน
         backgroundColor: const Color(0xFF890E1C),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white.withOpacity(0.6),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined, size: 30, color: Colors.white),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(Icons.person_4, size: 30, color: Colors.white),
             label: 'Profile',
           ),
         ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.yellowAccent, // สีที่เด่นขึ้นเมื่อเลือก
+        unselectedItemColor: Colors.grey[400], // สีที่ดูอ่อนลงเมื่อไม่ได้เลือก
+        selectedIconTheme: IconThemeData(size: 35, color: Colors.yellowAccent), // ขนาดและสีไอคอนเมื่อเลือก
+        unselectedIconTheme: IconThemeData(size: 30, color: Colors.grey[400]), // ขนาดและสีไอคอนเมื่อไม่ได้เลือก
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold, // น้ำหนักตัวอักษรหนาขึ้นเมื่อเลือก
+          fontSize: 14,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.normal, // น้ำหนักตัวอักษรเบาลงเมื่อไม่ได้เลือก
+          fontSize: 12,
+        ),
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
-            _selectedIndex = index; // อัปเดต index เมื่อมีการเลือก
+            _selectedIndex = index;
           });
         },
       ),
