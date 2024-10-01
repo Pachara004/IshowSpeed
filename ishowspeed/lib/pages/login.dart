@@ -14,49 +14,63 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  Future<void> _loginUser(String email, String password) async {
-    try {
-      // ใช้ FirebaseAuth เพื่อเข้าสู่ระบบ
-    UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    
-      // ตรวจสอบผู้ใช้ใน Firestore
-      final userQuery = await FirebaseFirestore.instance
+Future<void> _loginUser(String input, String password) async {
+  try {
+    // ตรวจสอบว่าผู้ใช้นำข้อมูลเข้ามาเป็นเบอร์โทรหรืออีเมล
+    bool isPhoneNumber = RegExp(r'^[0-9]+$').hasMatch(input);
+
+    QuerySnapshot userQuery;
+
+    if (isPhoneNumber) {
+      // ใช้เบอร์โทรในการเข้าสู่ระบบ
+      userQuery = await FirebaseFirestore.instance
           .collection('users')
-          .where('email', isEqualTo: email)
+          .where('phone', isEqualTo: input)
           .where('password', isEqualTo: password)
           .get();
+    } else {
+      // ใช้อีเมลในการเข้าสู่ระบบ
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: input, password: password);
 
-      if (userQuery.docs.isNotEmpty) {
-        // ดึงประเภทผู้ใช้
-        final userType = userQuery.docs.first['userType'];
-
-        // นำทางไปยังหน้าที่เหมาะสม
-        if (userType == 'User') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => UserHomePage()),
-          );
-        } else if (userType == 'Rider') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => RiderHomePage()),
-          );
-        }
-        print('User: $userQuery');
-        print('User Query Count: ${userQuery.docs.length}');
-        print('User Type: $userType');
-
-      } else {
-        // แสดงข้อความเมื่อข้อมูลเข้าสู่ระบบไม่ถูกต้อง
-        _showErrorDialog('Invalid email or password');
-      }
-    } catch (e) {
-      _showErrorDialog('Error logging in: $e');
+      // ใช้อีเมลในการค้นหาใน Firestore
+      userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: input)
+          .where('password', isEqualTo: password)
+          .get();
     }
+
+    if (userQuery.docs.isNotEmpty) {
+      
+      // ดึงประเภทผู้ใช้
+      final userType = userQuery.docs.first['userType'];
+
+      // นำทางไปยังหน้าที่เหมาะสม
+      if (userType == 'User') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => UserHomePage()),
+        );
+      } else if (userType == 'Rider') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => RiderHomePage()),
+        );
+      }
+      print('User: $userQuery');
+      print('User: ${userQuery.docs.first.data()}');
+      print('User Query Count: ${userQuery.docs.length}');
+      print('User Type: $userType');
+    } else {
+      // แสดงข้อความเมื่อข้อมูลเข้าสู่ระบบไม่ถูกต้อง
+      _showErrorDialog('Invalid phone/email or password');
+    }
+  } catch (e) {
+    _showErrorDialog('Error logging in: $e');
   }
+}
+
 
   void _showErrorDialog(String message) {
     showDialog(

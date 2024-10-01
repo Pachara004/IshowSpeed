@@ -76,20 +76,96 @@ Future<String?> _uploadProfileImage(String uid) async {
   }
 }
 
+Future<bool> _isPhoneNumberDuplicate(String phone) async {
+  try {
+    final querySnapshot = await _firestore
+        .collection('users')
+        .where('phone', isEqualTo: phone)
+        .get();
+    
+    return querySnapshot.docs.isNotEmpty;
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error checking phone number: $e')),
+    );
+    return false;
+  }
+}
+// ฟังก์ชันเช็คอีเมลซ้ำ
+Future<bool> _isEmailDuplicate(String email) async {
+  final QuerySnapshot result = await FirebaseFirestore.instance
+      .collection('users')
+      .where('email', isEqualTo: email)
+      .get();
+  return result.docs.isNotEmpty;
+}
 
-  Future<void> _register() async {
-    // ตรวจสอบความยาวของเบอร์โทร
+Future<void> _register() async {
+
+  // ตรวจสอบว่ากรอกข้อมูลครบทุกช่อง
+  if (_usernameController.text.isEmpty ||
+      _phoneController.text.isEmpty ||
+      _emailController.text.isEmpty ||
+      _passwordController.text.isEmpty ||
+      _confirmPasswordController.text.isEmpty ||
+      (_userType == 'Rider' && _vehicleController.text.isEmpty)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please fill in all fields')),
+    );
+    return;
+  }
+   // ตรวจสอบว่าผู้ใช้ได้เลือกรูปภาพหรือยัง
+  if (_profileImage == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select a profile image')),
+    );
+    return;
+  }
+
+  // ตรวจสอบว่ากรอกที่อยู่หรือเลือกพิกัดแล้วหรือยัง
+  if (_addressController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please provide your address or select a location')),
+    );
+    return;
+  }
+// ตรวจสอบว่ากรอกทะเบียนรถเฉพาะเมื่อเป็น Rider
+if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Please add your vehicle registration number')),
+  );
+  return;
+}
+
+// ตรวจสอบความยาวของเบอร์โทร
   if (_phoneController.text.length != 10) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Phone number must be 10 digits')),
     );
-    return; // ออกจากฟังก์ชันหากเบอร์โทรไม่ครบ 10 ตัว
+    return;
+  }
+  // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
+  bool isDuplicate = await _isPhoneNumberDuplicate(_phoneController.text);
+  if (isDuplicate) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Phone number already registered')),
+    );
+    return;
+  }
+   // ตรวจสอบว่าอีเมลซ้ำหรือไม่
+  bool isDuplicateEmail = await _isEmailDuplicate(_emailController.text);
+  if (isDuplicateEmail) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Email already registered')),
+    );
+    return;
   }
 
   if (_passwordController.text == _confirmPasswordController.text) {
     try {
       // สร้างผู้ใช้ใหม่ด้วย Firebase Authentication
-      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
@@ -133,7 +209,6 @@ Future<String?> _uploadProfileImage(String uid) async {
     );
   }
 }
-
 
   @override
   Widget build(BuildContext context) {
