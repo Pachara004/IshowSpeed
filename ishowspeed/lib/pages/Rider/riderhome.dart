@@ -55,7 +55,10 @@ class _RiderHomePageState extends State<RiderHomePage> {
       children: [
         Expanded(
           child: Container(
+            height: 100.0, // ปรับความสูง
+            width: 400.0, // ปรับความกว้างถ้าต้องการ
             padding: const EdgeInsets.all(16.0),
+            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 70.0), // เพิ่ม margin ด้านข้าง
             decoration: const BoxDecoration(
               color: Color(0xFFFFC809),
               borderRadius: BorderRadius.only(

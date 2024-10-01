@@ -366,6 +366,9 @@ Widget _buildAddProductDialog(BuildContext context) {
                         _formKey.currentState!.save();
                         
                         // อัปโหลดภาพไปยัง Firebase Storage
+                        // รับ user ID ของผู้ใช้ที่เข้าสู่ระบบ
+                        User? user = FirebaseAuth.instance.currentUser;
+                        String? userId = user?.uid; // userId จะเก็บ uid ของผู้ใช้
                         await _uploadImage();
 
                         // สร้าง Map สำหรับข้อมูลผลิตภัณฑ์
@@ -377,6 +380,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                           'recipientName': _recipientName,
                           'recipientPhone': _recipientPhone,
                           'imageUrl': _imageUrl, // เก็บ URL ของภาพ
+                          'userId': userId, // เพิ่ม userID
                         };
 
                         // บันทึกข้อมูลผลิตภัณฑ์ไปยัง Firestore

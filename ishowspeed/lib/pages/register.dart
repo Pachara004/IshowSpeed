@@ -124,7 +124,7 @@ Future<void> _register() async {
   }
 
   // ตรวจสอบว่ากรอกที่อยู่หรือเลือกพิกัดแล้วหรือยัง
-  if (_addressController.text.isEmpty) {
+  if (_userType == 'User' &&_addressController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Please provide your address or select a location')),
     );
