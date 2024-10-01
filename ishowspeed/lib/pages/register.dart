@@ -64,7 +64,8 @@ Future<String?> _uploadProfileImage(String uid) async {
     final ref = FirebaseStorage.instance
         .ref()
         .child('profile_images')
-        .child('$uid.jpg');
+        .child(uid) // สร้างโฟลเดอร์โดยใช้ uid
+        .child('profile.jpg'); // ตั้งชื่อไฟล์เป็น profile.jpg
     await ref.putFile(_profileImage!);
     final downloadUrl = await ref.getDownloadURL();
     return downloadUrl;
