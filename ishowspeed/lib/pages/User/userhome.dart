@@ -16,17 +16,61 @@ class UserHomePage extends StatefulWidget {
 class _UserHomePageState extends State<UserHomePage> {
   int _selectedIndex = 0;
   User? _currentUser;
+  String? _profileImageUrl;
+  String? _username;
 
-  @override
-  void initState() {
-    super.initState();
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+@override
+void initState() {
+  super.initState();
+
+  // ดึงข้อมูลผู้ใช้จาก FirebaseAuth
+  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+    if (user != null) {
       setState(() {
         _currentUser = user;
-        print("Current User: ${_currentUser?.email ?? 'No user logged in'}");
       });
+
+      // Log ข้อมูลผู้ใช้
+      print("User ID: ${_currentUser!.uid}");
+      print("Email: ${_currentUser!.email}");
+      print("Phone: ${_currentUser!.phoneNumber}");
+
+      // ดึงข้อมูลผู้ใช้จาก Firestore
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .get();
+
+      setState(() {
+        _profileImageUrl = userDoc.data()?['profileImage'] ?? ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+        _username = userDoc.data()?['username'] ?? 'Guest'; // ถ้าไม่มี username จะแสดง Guest
+      });
+
+      // Log ข้อมูลโปรไฟล์ (หากมี)
+      print("Profile Image URL: $_profileImageUrl");
+      print("Username: $_username");
+    }
+  });
+}
+void _fetchUserData() async {
+  if (_currentUser != null) {
+    // ดึงรูปโปรไฟล์จาก Firestore
+    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUser!.uid)
+        .get();
+    
+    setState(() {
+      _profileImageUrl = userDoc.data()?['profileImage'] ?? ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+      _username = userDoc.data()?['username'] ?? 'Guest'; // ถ้าไม่มี username จะแสดง Guest
     });
+
+    // Log ข้อมูลโปรไฟล์ (หากมี)
+    print("Profile Image URL: $_profileImageUrl");
+    print("Username: $_username");
   }
+}
+
 
   final List<Widget> _pages = [
     UserDashboard(),
@@ -41,6 +85,36 @@ class _UserHomePageState extends State<UserHomePage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF890E1C),
         automaticallyImplyLeading: false,
+        actions: [
+          // ใช้ Row เพื่อแสดงรูปโปรไฟล์และชื่อผู้ใช้
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Row(
+              children: [
+                Text(
+                  _username ?? 'Guest', // ถ้า _username เป็น null ให้แสดง 'Guest'
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                    ? CircleAvatar(
+                        backgroundImage: NetworkImage(_profileImageUrl!), // ใช้เครื่องหมาย ! เพื่อบอกว่าไม่เป็น null แน่นอน
+                        radius: 30, // ปรับขนาดรูปโปรไฟล์
+                      )
+                    : CircleAvatar(
+                        backgroundColor: Colors.white,
+                        radius: 30, // ปรับขนาดเมื่อไม่มีรูป
+                        child: Icon(Icons.person, color: Color(0xFF890E1C), size: 30),
+                      ),
+                const SizedBox(width: 8), // เว้นช่องว่างระหว่างรูปและชื่อ
+              ],
+            ),
+          ),
+        ],
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -74,10 +148,12 @@ class _UserHomePageState extends State<UserHomePage> {
         ),
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        setState(() {
+          _selectedIndex = index;
+          _fetchUserData();
+        });
+
+      },
       ),
     );
   }

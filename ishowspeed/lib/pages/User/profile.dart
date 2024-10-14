@@ -235,8 +235,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: ElevatedButton(
                                 onPressed: () => _logout(context),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(
-                                      0xFFFFC809), // สีปุ่มเป็นสีเหลือง
+                                  backgroundColor: const Color.fromARGB(255, 172, 25, 25), // สีปุ่มเป็นสีเหลือง
                                   minimumSize: const Size(
                                       80, 50), // ปรับความกว้างของปุ่ม
                                   shadowColor: Colors.black, // สีเงา
@@ -246,7 +245,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   'Log out',
                                   style: TextStyle(
                                     fontSize: 20,
-                                    color: Colors.black, // สีข้อความเป็นสีดำ
+                                    color: Color.fromARGB(255, 255, 255, 255), // สีข้อความเป็นสีดำ
                                     fontWeight: FontWeight.w800, // เพิ่มความหนาของฟอนต์เป็น extra bold
                                   ),
                                 ),
@@ -456,7 +455,28 @@ void _showEditProfileDialog(BuildContext context, Map<String, dynamic> userData)
                 Navigator.of(context).pop(); // ปิด Dialog หลังจากอัปเดตสำเร็จ
                 setState(() {}); // เรียก setState เพื่อ refresh หน้าจอ
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile updated successfully!')),
+                  SnackBar(
+                    content: const Text(
+                      'Profile updated successfully!',
+                      style: TextStyle(
+                        fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                        fontWeight: FontWeight.bold, // ทำให้ฟอนต์หนาขึ้น
+                      ),
+                    ),
+                    backgroundColor: Colors.green, // เปลี่ยนสีพื้นหลัง
+                    duration: const Duration(seconds: 2), // ระยะเวลาแสดง SnackBar
+                    action: SnackBarAction(
+                      label: 'Undo', // ปุ่มสำหรับการทำงานเพิ่มเติม
+                      textColor: Colors.white, // สีข้อความปุ่ม
+                      onPressed: () {
+                        // การกระทำที่ต้องการเมื่อกดปุ่ม Undo
+                      },
+                    ),
+                    shape: RoundedRectangleBorder( // เปลี่ยนรูปร่างของ SnackBar
+                      borderRadius: BorderRadius.circular(8), // ปรับรัศมีมุม
+                    ),
+                    behavior: SnackBarBehavior.floating, // ให้ SnackBar ลอยอยู่เหนือเนื้อหา
+                  ),
                 );
               }
             } catch (e) {
