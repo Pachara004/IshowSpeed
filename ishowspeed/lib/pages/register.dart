@@ -355,14 +355,39 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: TextStyle(
+          color: Colors.grey[700], // สีของ label ที่ดูนุ่มนวล
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
+        ),
         filled: true,
-        fillColor: Colors.white,
-        prefixIcon: Icon(icon),
+        fillColor: Colors.grey[100], // สีพื้นหลังที่อ่อนนุ่ม
+        prefixIcon: Icon(
+          icon,
+          color: Colors.blueAccent, // สีของไอคอนที่ดูทันสมัย
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(25), // ขอบที่โค้งมนมากขึ้น
+          borderSide: BorderSide.none, // เอาขอบออก
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25),
+          borderSide: BorderSide(
+            color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
+            width: 2,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 20,
         ),
       ),
       keyboardType: inputType,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: Colors.black87, // สีตัวอักษรเมื่อพิมพ์
+      ),
       validator: (value) {
         if (value!.isEmpty) {
           return 'Please enter your $label';
@@ -376,19 +401,57 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
     );
   }
 
+
   // Password field with validation for matching
   Widget _buildPasswordField(String label, TextEditingController controller, [TextEditingController? matchingController]) {
+    bool _isObscured = true; 
     return TextFormField(
       controller: controller,
-      obscureText: true,
+      obscureText: _isObscured, // ใช้สถานะเพื่อควบคุมการปกปิดรหัสผ่าน
       decoration: InputDecoration(
         labelText: label,
-        filled: true,
-        fillColor: Colors.white,
-        prefixIcon: const Icon(Icons.lock),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
+        labelStyle: TextStyle(
+          color: Colors.grey[700], // สีของ label ที่ดูทันสมัย
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
         ),
+        filled: true,
+        fillColor: Colors.grey[100], // สีพื้นหลังที่อ่อนนุ่ม
+        prefixIcon: Icon(
+          Icons.lock,
+          color: Colors.blueAccent, // สีของไอคอนรหัสผ่าน
+        ),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _isObscured ? Icons.visibility : Icons.visibility_off, // เปลี่ยนไอคอนตามสถานะ
+            color: Colors.blueAccent,
+          ),
+          onPressed: () {
+            setState(() {
+              _isObscured = !_isObscured; // เปลี่ยนสถานะการแสดงรหัสผ่าน
+            });
+          },
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25), // เพิ่มความโค้งมนมากขึ้น
+          borderSide: BorderSide.none, // เอาเส้นขอบออก
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25),
+          borderSide: BorderSide(
+            color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
+            width: 2,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 20,
+        ),
+      ),
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: Colors.black87, // สีของตัวอักษรเมื่อพิมพ์
       ),
       validator: (value) {
         if (value!.isEmpty) {
@@ -400,4 +463,5 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
       },
     );
   }
+
 }
