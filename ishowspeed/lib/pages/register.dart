@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
-
+import 'package:location/location.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -294,7 +296,9 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
                           const SizedBox(height: 16),
                           _buildPasswordField('Confirm Password', _confirmPasswordController, _passwordController),
                           const SizedBox(height: 16),
-                          _buildTextField('Address', _addressController, Icons.location_on),
+                          _buildLocationPicker(),
+                          // _buildTextField('Address', _addressController, Icons.location_on),
+                          
                         ],
                       ),
                     ),
@@ -372,18 +376,18 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
-          borderSide: BorderSide(
+          borderSide: const BorderSide(
             color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
             width: 2,
           ),
         ),
-        contentPadding: EdgeInsets.symmetric(
+        contentPadding: const EdgeInsets.symmetric(
           vertical: 16,
           horizontal: 20,
         ),
       ),
       keyboardType: inputType,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: Colors.black87, // สีตัวอักษรเมื่อพิมพ์
@@ -417,7 +421,7 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
         ),
         filled: true,
         fillColor: Colors.grey[100], // สีพื้นหลังที่อ่อนนุ่ม
-        prefixIcon: Icon(
+        prefixIcon: const Icon(
           Icons.lock,
           color: Colors.blueAccent, // สีของไอคอนรหัสผ่าน
         ),
@@ -438,17 +442,17 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
-          borderSide: BorderSide(
+          borderSide: const BorderSide(
             color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
             width: 2,
           ),
         ),
-        contentPadding: EdgeInsets.symmetric(
+        contentPadding: const EdgeInsets.symmetric(
           vertical: 16,
           horizontal: 20,
         ),
       ),
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: Colors.black87, // สีของตัวอักษรเมื่อพิมพ์
@@ -463,5 +467,155 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
       },
     );
   }
+Widget _buildLocationPicker() {
+  return InkWell(
+    onTap: () async {
+      final selectedLocation = await _showMapDialog(context);
+      if (selectedLocation != null) {
+        setState(() {
+          _addressController.text = selectedLocation;
+        });
+      }
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: Colors.blueAccent, width: 2),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _addressController.text.isEmpty ? 'Select Location' : 'Selected:',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (_addressController.text.isNotEmpty)
+                  Text(
+                    _addressController.text,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black54,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.location_on,
+            color: Colors.blueAccent,
+            size: 24,
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
+Future<String?> _showMapDialog(BuildContext context) async {
+  // สร้าง state variable สำหรับเก็บ selectedLocation
+  ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
+  LocationData? currentLocation;
+
+  // พิกัดมหาวิทยาลัยมหาสารคาม ตำบลขามเรียง
+  final msuLocation = LatLng(16.2469, 103.2496);
+
+  // ดึงตำแหน่งปัจจุบันของมือถือ
+  final location = Location();
+  try {
+    currentLocation = await location.getLocation();
+  } catch (e) {
+    print("ไม่สามารถดึงตำแหน่งปัจจุบันได้: $e");
+  }
+
+  return showDialog<String>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('เลือกตำแหน่งของคุณ'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ValueListenableBuilder<LatLng?>(
+            valueListenable: selectedLocationNotifier,
+            builder: (context, selectedLocation, _) {
+              return FlutterMap(
+                options: MapOptions(
+                  initialCenter: msuLocation, // เริ่มต้นที่ ม.มหาสารคาม
+                  initialZoom: 15.0,
+                  minZoom: 5.0,
+                  maxZoom: 18.0,
+                  onTap: (_, point) {
+                    selectedLocationNotifier.value = point;
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    subdomains: const ['a', 'b', 'c'],
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      // แสดง marker ตำแหน่งที่เลือก
+                      if (selectedLocation != null)
+                        Marker(
+                          point: selectedLocation,
+                          child: const Icon(
+                            Icons.place,
+                            color: Colors.blue,
+                            size: 40,
+                          ),
+                        ),
+                      // แสดง marker ตำแหน่ง ม.มหาสารคาม (ถ้ายังไม่มีการเลือกตำแหน่ง)
+                      if (selectedLocation == null)
+                        Marker(
+                          point: msuLocation,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 40,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              final location = selectedLocationNotifier.value;
+              if (location != null) {
+                Navigator.of(context).pop(
+                  'Lat: ${location.latitude}, Long: ${location.longitude}'
+                );
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('เลือก'),
+          ),
+        ],
+      );
+    },
+  );
+}
 }
