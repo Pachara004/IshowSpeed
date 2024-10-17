@@ -12,7 +12,7 @@ class DeliveryStatusPage extends StatelessWidget {
             child: Stack(
               children: [
                 FlutterMap(
-                  options: MapOptions(
+                  options: const MapOptions(
                     initialCenter: LatLng(16.244966599496927, 103.24976590899573),
                     initialZoom: 13.0,
                   ),
@@ -24,13 +24,13 @@ class DeliveryStatusPage extends StatelessWidget {
                     PolylineLayer(
                       polylines: [
                         Polyline(
-                          points: [LatLng(16.244966599496927, 103.24976590899573), LatLng(16.241501529917333, 103.2575825276931)],
+                          points: [const LatLng(16.244966599496927, 103.24976590899573), const LatLng(16.241501529917333, 103.2575825276931)],
                           strokeWidth: 4.0,
                           color: Colors.blue,
                         ),
                       ],
                     ),
-                    MarkerLayer(
+                    const MarkerLayer(
                       markers: [
                         Marker(
                           width: 80.0,
@@ -52,7 +52,7 @@ class DeliveryStatusPage extends StatelessWidget {
                   left: 10,
                   top: 40,
                   child: IconButton(
-                    icon: Icon(Icons.arrow_back, color: Colors.black),
+                    icon: const Icon(Icons.arrow_back, color: Colors.black),
                     onPressed: () {
                       // Handle back navigation
                     },
@@ -62,7 +62,7 @@ class DeliveryStatusPage extends StatelessWidget {
                   right: 10,
                   top: 40,
                   child: TextButton(
-                    child: Text('Detail', style: TextStyle(color: Colors.black)),
+                    child: const Text('Detail', style: TextStyle(color: Colors.black)),
                     onPressed: () {
                       // Handle detail view
                     },
@@ -72,7 +72,7 @@ class DeliveryStatusPage extends StatelessWidget {
             ),
           ),
           Container(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 Row(
@@ -84,8 +84,8 @@ class DeliveryStatusPage extends StatelessWidget {
                     _buildStatusIndicator(Icons.assignment_turned_in, 'completed', false),
                   ],
                 ),
-                SizedBox(height: 20),
-                Row(
+                const SizedBox(height: 20),
+                const Row(
                   children: [
                     CircleAvatar(
                       radius: 25,
@@ -109,9 +109,9 @@ class DeliveryStatusPage extends StatelessWidget {
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Shipping history'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Shipping history'),
         ],
         currentIndex: 1,
         selectedItemColor: Colors.black,
@@ -124,15 +124,15 @@ class DeliveryStatusPage extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding: EdgeInsets.all(8),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: isActive ? Colors.red : Colors.red.withOpacity(0.3),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 20),
         ),
-        SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 10), textAlign: TextAlign.center),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 10), textAlign: TextAlign.center),
       ],
     );
   }
