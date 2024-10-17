@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -525,74 +526,110 @@ Widget _buildLocationPicker() {
 }
 
 Future<String?> _showMapDialog(BuildContext context) async {
-  // สร้าง state variable สำหรับเก็บ selectedLocation
   ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
-  LocationData? currentLocation;
-
-  // พิกัดมหาวิทยาลัยมหาสารคาม ตำบลขามเรียง
+  ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+  ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
   final msuLocation = LatLng(16.2469, 103.2496);
 
-  // ดึงตำแหน่งปัจจุบันของมือถือ
-  final location = Location();
-  try {
-    currentLocation = await location.getLocation();
-  } catch (e) {
-    print("ไม่สามารถดึงตำแหน่งปัจจุบันได้: $e");
+  // แยกการโหลดตำแหน่งออกไปทำงานแบบ asynchronous
+  Future<void> loadLocation() async {
+    final location = Location();
+    try {
+      final locationData = await location.getLocation();
+      currentLocationNotifier.value = locationData;
+    } catch (e) {
+      print("ไม่สามารถดึงตำแหน่งปัจจุบันได้: $e");
+    }
   }
+
+  // เริ่มโหลดตำแหน่งหลังจาก dialog แสดง
+  scheduleMicrotask(loadLocation);
 
   return showDialog<String>(
     context: context,
+    barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
     builder: (context) {
       return AlertDialog(
-        title: const Text('เลือกตำแหน่งของคุณ'),
+        title: const Text('Selected Your Tee Yuu'),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
-          child: ValueListenableBuilder<LatLng?>(
-            valueListenable: selectedLocationNotifier,
-            builder: (context, selectedLocation, _) {
-              return FlutterMap(
-                options: MapOptions(
-                  initialCenter: msuLocation, // เริ่มต้นที่ ม.มหาสารคาม
-                  initialZoom: 15.0,
-                  minZoom: 5.0,
-                  maxZoom: 18.0,
-                  onTap: (_, point) {
-                    selectedLocationNotifier.value = point;
-                  },
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    subdomains: const ['a', 'b', 'c'],
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      // แสดง marker ตำแหน่งที่เลือก
-                      if (selectedLocation != null)
-                        Marker(
-                          point: selectedLocation,
-                          child: const Icon(
-                            Icons.place,
-                            color: Colors.blue,
-                            size: 40,
+          child: Stack(
+            children: [
+              FutureBuilder<void>(
+                future: Future.delayed(const Duration(milliseconds: 100)), // รอให้ dialog แสดงก่อน
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return ValueListenableBuilder<LatLng?>(
+                      valueListenable: selectedLocationNotifier,
+                      builder: (context, selectedLocation, _) {
+                        return FlutterMap(
+                          options: MapOptions(
+                            initialCenter: msuLocation,
+                            initialZoom: 15.0,
+                            minZoom: 5.0,
+                            maxZoom: 18.0,
+                            onTap: (_, point) {
+                              selectedLocationNotifier.value = point;
+                            },
+                            onMapReady: () {
+                              isMapLoaded.value = true;
+                            },
                           ),
-                        ),
-                      // แสดง marker ตำแหน่ง ม.มหาสารคาม (ถ้ายังไม่มีการเลือกตำแหน่ง)
-                      if (selectedLocation == null)
-                        Marker(
-                          point: msuLocation,
-                          child: const Icon(
-                            Icons.location_on,
-                            color: Colors.red,
-                            size: 40,
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c'],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                if (selectedLocation != null)
+                                  Marker(
+                                    point: selectedLocation,
+                                    child: const Icon(
+                                      Icons.place,
+                                      color: Colors.blue,
+                                      size: 40,
+                                    ),
+                                  ),
+                                if (selectedLocation == null)
+                                  Marker(
+                                    point: msuLocation,
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  }
+                  return Container(
+                    color: Colors.white,
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'กำลังโหลดแผนที่...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                ],
-              );
-            },
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
         actions: [
@@ -600,18 +637,23 @@ Future<String?> _showMapDialog(BuildContext context) async {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('ยกเลิก'),
           ),
-          TextButton(
-            onPressed: () {
-              final location = selectedLocationNotifier.value;
-              if (location != null) {
-                Navigator.of(context).pop(
-                  'Lat: ${location.latitude}, Long: ${location.longitude}'
-                );
-              } else {
-                Navigator.of(context).pop();
-              }
+          ValueListenableBuilder<bool>(
+            valueListenable: isMapLoaded,
+            builder: (context, loaded, _) {
+              return TextButton(
+                onPressed: loaded ? () {
+                  final location = selectedLocationNotifier.value;
+                  if (location != null) {
+                    Navigator.of(context).pop(
+                      'Lat: ${location.latitude}, Long: ${location.longitude}'
+                    );
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                } : null,
+                child: const Text('เลือก'),
+              );
             },
-            child: const Text('เลือก'),
           ),
         ],
       );

@@ -87,7 +87,7 @@ void _showErrorDialog(String message) {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20), // ปรับขอบโค้งมน
       ),
-      title: Row(
+      title: const Row(
         children: [
           Icon(Icons.error, color: Colors.red), // เพิ่มไอคอน Error สีแดง
           SizedBox(width: 10), // เพิ่มระยะห่างระหว่างไอคอนกับข้อความ
@@ -103,7 +103,7 @@ void _showErrorDialog(String message) {
       ),
       content: Text(
         message,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 18, // ปรับขนาดฟอนต์ข้อความเนื้อหา
         ),
       ),
@@ -114,12 +114,12 @@ void _showErrorDialog(String message) {
           },
           style: TextButton.styleFrom(
             backgroundColor: Colors.red, // ปรับสีพื้นหลังของปุ่ม
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10), // ปรับระยะขอบในปุ่ม
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), // ปรับระยะขอบในปุ่ม
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10), // ขอบปุ่มโค้งมน
             ),
           ),
-          child: Text(
+          child: const Text(
             'OK',
             style: TextStyle(
               color: Colors.white, // เปลี่ยนสีข้อความเป็นสีขาว
@@ -174,7 +174,7 @@ void _showErrorDialog(String message) {
                 ),
                 filled: true,
                 fillColor: Colors.grey[100], // สีพื้นหลังที่นุ่มสบายตา
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.email,
                   color: Colors.blueAccent, // สีของไอคอน
                 ),
@@ -184,18 +184,18 @@ void _showErrorDialog(String message) {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide(
+                  borderSide: const BorderSide(
                     color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
                     width: 2,
                   ),
                 ),
-                contentPadding: EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   vertical: 16,
                   horizontal: 20,
                 ),
               ),
               keyboardType: TextInputType.emailAddress,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
                 color: Colors.black87, // สีตัวอักษรเมื่อพิมพ์
@@ -214,7 +214,7 @@ void _showErrorDialog(String message) {
     ),
     filled: true,
     fillColor: Colors.grey[100], // สีพื้นหลังที่นุ่มเหมือนช่อง Email
-    prefixIcon: Icon(
+    prefixIcon: const Icon(
       Icons.lock,
       color: Colors.blueAccent, // สีของไอคอน Password
     ),
@@ -235,18 +235,18 @@ void _showErrorDialog(String message) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(25),
-      borderSide: BorderSide(
+      borderSide: const BorderSide(
         color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
         width: 2,
       ),
     ),
-    contentPadding: EdgeInsets.symmetric(
+    contentPadding: const EdgeInsets.symmetric(
       vertical: 16,
       horizontal: 20,
     ),
   ),
   obscureText: _isObscure, // ปกปิดรหัสผ่านหาก _isObscure เป็น true
-  style: TextStyle(
+  style: const TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w400,
     color: Colors.black87, // สีตัวอักษรเมื่อพิมพ์
@@ -280,7 +280,7 @@ void _showErrorDialog(String message) {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => RegisterPage()),
+                    MaterialPageRoute(builder: (context) => const RegisterPage()),
                   );
                 },
                 child: const Text(

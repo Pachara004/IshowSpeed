@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -18,59 +19,70 @@ class _UserHomePageState extends State<UserHomePage> {
   User? _currentUser;
   String? _profileImageUrl;
   String? _username;
+  String? _phone;
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  // ดึงข้อมูลผู้ใช้จาก FirebaseAuth
-  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
-    if (user != null) {
-      setState(() {
-        _currentUser = user;
-      });
+    // ดึงข้อมูลผู้ใช้จาก FirebaseAuth
+    log("message");
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (user != null) {
+        log(user.toString());
+        setState(() {
+          _currentUser = user;
+        });
 
-      // Log ข้อมูลผู้ใช้
-      print("User ID: ${_currentUser!.uid}");
-      print("Email: ${_currentUser!.email}");
-      print("Phone: ${_currentUser!.phoneNumber}");
+        // Log ข้อมูลผู้ใช้
+        print("User ID: ${_currentUser!.uid}");
+        print("Email: ${_currentUser!.email}");
+        print("Phone: ${_currentUser!.phoneNumber}");
 
-      // ดึงข้อมูลผู้ใช้จาก Firestore
-      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore.instance
+        // ดึงข้อมูลผู้ใช้จาก Firestore
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        setState(() {
+          _profileImageUrl = userDoc.data()?['profileImage'] ??
+              ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+          _username = userDoc.data()?['username'] ??
+              'Guest'; // ถ้าไม่มี username จะแสดง Guest
+          _phone = userDoc.data()?['phone'];
+        });
+
+        // Log ข้อมูลโปรไฟล์ (หากมี)
+        log(_phone.toString());
+        print("Profile Image URL: $_profileImageUrl");
+        print("Username: $_username");
+      }
+    });
+  }
+
+  void _fetchUserData() async {
+    if (_currentUser != null) {
+      // ดึงรูปโปรไฟล์จาก Firestore
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
           .collection('users')
           .doc(_currentUser!.uid)
           .get();
 
       setState(() {
-        _profileImageUrl = userDoc.data()?['profileImage'] ?? ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
-        _username = userDoc.data()?['username'] ?? 'Guest'; // ถ้าไม่มี username จะแสดง Guest
+        _profileImageUrl = userDoc.data()?['profileImage'] ??
+            ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+        _username = userDoc.data()?['username'] ??
+            'Guest'; // ถ้าไม่มี username จะแสดง Guest
       });
 
       // Log ข้อมูลโปรไฟล์ (หากมี)
       print("Profile Image URL: $_profileImageUrl");
       print("Username: $_username");
     }
-  });
-}
-void _fetchUserData() async {
-  if (_currentUser != null) {
-    // ดึงรูปโปรไฟล์จาก Firestore
-    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_currentUser!.uid)
-        .get();
-    
-    setState(() {
-      _profileImageUrl = userDoc.data()?['profileImage'] ?? ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
-      _username = userDoc.data()?['username'] ?? 'Guest'; // ถ้าไม่มี username จะแสดง Guest
-    });
-
-    // Log ข้อมูลโปรไฟล์ (หากมี)
-    print("Profile Image URL: $_profileImageUrl");
-    print("Username: $_username");
   }
-}
-
 
   final List<Widget> _pages = [
     UserDashboard(),
@@ -92,7 +104,8 @@ void _fetchUserData() async {
             child: Row(
               children: [
                 Text(
-                  _username ?? 'Guest', // ถ้า _username เป็น null ให้แสดง 'Guest'
+                  _username ??
+                      'Guest', // ถ้า _username เป็น null ให้แสดง 'Guest'
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
@@ -102,13 +115,15 @@ void _fetchUserData() async {
                 const SizedBox(width: 15),
                 _profileImageUrl != null && _profileImageUrl!.isNotEmpty
                     ? CircleAvatar(
-                        backgroundImage: NetworkImage(_profileImageUrl!), // ใช้เครื่องหมาย ! เพื่อบอกว่าไม่เป็น null แน่นอน
+                        backgroundImage: NetworkImage(
+                            _profileImageUrl!), // ใช้เครื่องหมาย ! เพื่อบอกว่าไม่เป็น null แน่นอน
                         radius: 30, // ปรับขนาดรูปโปรไฟล์
                       )
-                    : CircleAvatar(
+                    : const CircleAvatar(
                         backgroundColor: Colors.white,
                         radius: 30, // ปรับขนาดเมื่อไม่มีรูป
-                        child: Icon(Icons.person, color: Color(0xFF890E1C), size: 30),
+                        child: Icon(Icons.person,
+                            color: Color(0xFF890E1C), size: 30),
                       ),
                 const SizedBox(width: 8), // เว้นช่องว่างระหว่างรูปและชื่อ
               ],
@@ -136,8 +151,11 @@ void _fetchUserData() async {
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.yellowAccent, // สีที่เด่นขึ้นเมื่อเลือก
         unselectedItemColor: Colors.grey[400], // สีที่ดูอ่อนลงเมื่อไม่ได้เลือก
-        selectedIconTheme: IconThemeData(size: 35, color: Colors.yellowAccent), // ขนาดและสีไอคอนเมื่อเลือก
-        unselectedIconTheme: IconThemeData(size: 30, color: Colors.grey[400]), // ขนาดและสีไอคอนเมื่อไม่ได้เลือก
+        selectedIconTheme: const IconThemeData(
+            size: 35, color: Colors.yellowAccent), // ขนาดและสีไอคอนเมื่อเลือก
+        unselectedIconTheme: IconThemeData(
+            size: 30,
+            color: Colors.grey[400]), // ขนาดและสีไอคอนเมื่อไม่ได้เลือก
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold, // น้ำหนักตัวอักษรหนาขึ้นเมื่อเลือก
           fontSize: 14,
@@ -148,18 +166,68 @@ void _fetchUserData() async {
         ),
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
-        setState(() {
-          _selectedIndex = index;
-          _fetchUserData();
-        });
-
-      },
+          setState(() {
+            _selectedIndex = index;
+            _fetchUserData();
+          });
+        },
       ),
     );
   }
 }
 
-class UserDashboard extends StatelessWidget {
+class UserDashboard extends StatefulWidget {
+  @override
+  State<UserDashboard> createState() => _UserDashboardState();
+}
+
+class _UserDashboardState extends State<UserDashboard> {
+    User? _currentUser;
+  String? _profileImageUrl;
+  String? _username;
+  String? _phone;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ดึงข้อมูลผู้ใช้จาก FirebaseAuth
+    log("message");
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (user != null) {
+        log(user.toString());
+        setState(() {
+          _currentUser = user;
+        });
+
+        // Log ข้อมูลผู้ใช้
+        print("User ID: ${_currentUser!.uid}");
+        print("Email: ${_currentUser!.email}");
+        print("Phone: ${_currentUser!.phoneNumber}");
+
+        // ดึงข้อมูลผู้ใช้จาก Firestore
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        setState(() {
+          _profileImageUrl = userDoc.data()?['profileImage'] ??
+              ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+          _username = userDoc.data()?['username'] ??
+              'Guest'; // ถ้าไม่มี username จะแสดง Guest
+          _phone = userDoc.data()?['phone'];
+        });
+
+        // Log ข้อมูลโปรไฟล์ (หากมี)
+        log(_phone.toString());
+        print("Profile Image URL: $_profileImageUrl");
+        print("Username: $_username");
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -206,14 +274,21 @@ class UserDashboard extends StatelessWidget {
                             ),
                           ),
                           StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance.collection('Product').snapshots(),
+                            stream: FirebaseFirestore.instance
+                                .collection('Product')
+                                .where("userId", isEqualTo: _currentUser!.uid)
+                                .snapshots(),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return Center(child: CircularProgressIndicator());
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
                               }
 
-                              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                                return const Center(child: Text('No products available.'));
+                              if (!snapshot.hasData ||
+                                  snapshot.data!.docs.isEmpty) {
+                                return const Center(
+                                    child: Text('No products available.'));
                               }
                               return Column(
                                 children: snapshot.data!.docs.map((doc) {
@@ -221,10 +296,13 @@ class UserDashboard extends StatelessWidget {
                                   return ProductItem(
                                     context: context,
                                     name: data['productName'],
-                                    shipper: data['shipper'] ?? 'Unknown', // ค่าปริยาย
-                                    recipient: data['recipientName'] ?? 'Unknown',
+                                    shipper: data['shipper'] ??
+                                        'Unknown', // ค่าปริยาย
+                                    recipient:
+                                        data['recipientName'] ?? 'Unknown',
                                     imageUrl: data['imageUrl'],
-                                    details: data['productDetails'] ?? 'No details available.',
+                                    details: data['productDetails'] ??
+                                        'No details available.',
                                     numberOfProducts: data['numberOfProducts'],
                                     shippingAddress: data['shippingAddress'],
                                     recipientPhone: data['recipientPhone'],
@@ -245,16 +323,23 @@ class UserDashboard extends StatelessWidget {
                               ),
                             ),
                           ),
-                           // ใช้ StreamBuilder สำหรับผลิตภัณฑ์ที่ต้องรับเช่นเดียวกัน
+                          // ใช้ StreamBuilder สำหรับผลิตภัณฑ์ที่ต้องรับเช่นเดียวกัน
                           StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance.collection('Product').snapshots(),
+                            stream: FirebaseFirestore.instance
+                                .collection('Product')
+                                .where("recipientPhone", isEqualTo: _phone)
+                                .snapshots(),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return Center(child: CircularProgressIndicator());
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
                               }
 
-                              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                                return const Center(child: Text('No products available.'));
+                              if (!snapshot.hasData ||
+                                  snapshot.data!.docs.isEmpty) {
+                                return const Center(
+                                    child: Text('No products available.'));
                               }
 
                               return Column(
@@ -263,10 +348,13 @@ class UserDashboard extends StatelessWidget {
                                   return ProductItem(
                                     context: context,
                                     name: data['productName'],
-                                    shipper: data['shipper'] ?? 'Unknown', // ค่าปริยาย
-                                    recipient: data['recipientName'] ?? 'Unknown',
+                                    shipper: data['shipper'] ??
+                                        'Unknown', // ค่าปริยาย
+                                    recipient:
+                                        data['recipientName'] ?? 'Unknown',
                                     imageUrl: data['imageUrl'],
-                                    details: data['productDetails'] ?? 'No details available.',
+                                    details: data['productDetails'] ??
+                                        'No details available.',
                                     numberOfProducts: data['numberOfProducts'],
                                     shippingAddress: data['shippingAddress'],
                                     recipientPhone: data['recipientPhone'],
@@ -312,56 +400,57 @@ class UserDashboard extends StatelessWidget {
     );
   }
 
- // Method for showing the add product dialog
-void _showAddProductDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) => _buildAddProductDialog(context),
-  );
-}
-
-// Widget method for building the add product dialog
-Widget _buildAddProductDialog(BuildContext context) {
-  final _formKey = GlobalKey<FormState>();
-  String? _productName,
-      _productDetails,
-      _numberOfProducts,
-      _shippingAddress,
-      _recipientName,
-      _recipientPhone;
-  String? _imageUrl; // สำหรับเก็บ URL ของภาพ
-
-  // ตัวแปรสำหรับเลือกภาพ
-  final ImagePicker _picker = ImagePicker();
-  XFile? _imageFile; // สำหรับเก็บภาพที่เลือก
-
-  Future<void> _uploadImage() async {
-    if (_imageFile != null) {
-      try {
-        // สร้าง reference ไปยัง Firebase Storage
-        final storageRef = FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
-        
-        // อัปโหลดภาพ
-        await storageRef.putFile(File(_imageFile!.path));
-
-        // รับ URL ของภาพ
-        _imageUrl = await storageRef.getDownloadURL();
-        print('Image uploaded: $_imageUrl');
-      } catch (e) {
-        print('Failed to upload image: $e');
-      }
-    }
+  // Method for showing the add product dialog
+  void _showAddProductDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => _buildAddProductDialog(context),
+    );
   }
 
-  return StatefulBuilder(
-    builder: (BuildContext context, StateSetter setState) {
+// Widget method for building the add product dialog
+  Widget _buildAddProductDialog(BuildContext context) {
+    final _formKey = GlobalKey<FormState>();
+    String? _productName,
+        _productDetails,
+        _numberOfProducts,
+        _shippingAddress,
+        _recipientName,
+        _recipientPhone;
+    String? _imageUrl; // สำหรับเก็บ URL ของภาพ
+
+    // ตัวแปรสำหรับเลือกภาพ
+    final ImagePicker _picker = ImagePicker();
+    XFile? _imageFile; // สำหรับเก็บภาพที่เลือก
+
+    Future<void> _uploadImage() async {
+      if (_imageFile != null) {
+        try {
+          // สร้าง reference ไปยัง Firebase Storage
+          final storageRef = FirebaseStorage.instance
+              .ref('product_images/${_imageFile!.name}');
+
+          // อัปโหลดภาพ
+          await storageRef.putFile(File(_imageFile!.path));
+
+          // รับ URL ของภาพ
+          _imageUrl = await storageRef.getDownloadURL();
+          print('Image uploaded: $_imageUrl');
+        } catch (e) {
+          print('Failed to upload image: $e');
+        }
+      }
+    }
+
+    return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
       return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: SingleChildScrollView(
           child: Container(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Color(0xFF890E1C),
+              color: const Color(0xFF890E1C),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Form(
@@ -373,10 +462,12 @@ Widget _buildAddProductDialog(BuildContext context) {
                     backgroundColor: Colors.white,
                     radius: 30,
                     child: IconButton(
-                      icon: const Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
+                      icon: const Icon(Icons.add_a_photo,
+                          color: Color(0xFF890E1C), size: 30),
                       onPressed: () async {
                         // เลือกรูปภาพจากอุปกรณ์
-                        _imageFile = await _picker.pickImage(source: ImageSource.gallery);
+                        _imageFile = await _picker.pickImage(
+                            source: ImageSource.gallery);
                         if (_imageFile != null) {
                           setState(() {}); // อัปเดต UI เพื่อแสดงรูปที่เลือก
                         }
@@ -390,7 +481,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                   ),
                   // แสดงรูปภาพที่เลือก
                   if (_imageFile != null) ...[
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     GestureDetector(
                       onTap: () {
                         // แสดงภาพใน dialog ขนาดใหญ่เมื่อกดที่ภาพ
@@ -399,7 +490,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                           builder: (BuildContext context) {
                             return Dialog(
                               child: Container(
-                                padding: EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(8),
                                 child: Image.file(
                                   File(_imageFile!.path),
                                   fit: BoxFit.cover,
@@ -423,28 +514,35 @@ Widget _buildAddProductDialog(BuildContext context) {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  _buildTextField('Product name', (value) => _productName = value),
-                  _buildTextField('Product details', (value) => _productDetails = value),
-                  _buildTextField('Number of products', (value) => _numberOfProducts = value),
-                  _buildTextField('Shipping address', (value) => _shippingAddress = value),
-                  _buildTextField('Recipient name', (value) => _recipientName = value),
-                  _buildTextField('Recipient\'s phone number', (value) => _recipientPhone = value),
+                  _buildTextField(
+                      'Product name', (value) => _productName = value),
+                  _buildTextField(
+                      'Product details', (value) => _productDetails = value),
+                  _buildTextField('Number of products',
+                      (value) => _numberOfProducts = value),
+                  _buildTextField(
+                      'Shipping address', (value) => _shippingAddress = value),
+                  _buildTextField(
+                      'Recipient name', (value) => _recipientName = value),
+                  _buildTextField('Recipient\'s phone number',
+                      (value) => _recipientPhone = value),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    child: Text('Confirm'),
+                    child: const Text('Confirm'),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.black,
-                      backgroundColor: Color(0xFFFFC809),
-                      minimumSize: Size(double.infinity, 50),
+                      backgroundColor: const Color(0xFFFFC809),
+                      minimumSize: const Size(double.infinity, 50),
                     ),
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
                         _formKey.currentState!.save();
-                        
+
                         // อัปโหลดภาพไปยัง Firebase Storage
                         // รับ user ID ของผู้ใช้ที่เข้าสู่ระบบ
                         User? user = FirebaseAuth.instance.currentUser;
-                        String? userId = user?.uid; // userId จะเก็บ uid ของผู้ใช้
+                        String? userId =
+                            user?.uid; // userId จะเก็บ uid ของผู้ใช้
                         await _uploadImage();
 
                         // สร้าง Map สำหรับข้อมูลผลิตภัณฑ์
@@ -461,7 +559,9 @@ Widget _buildAddProductDialog(BuildContext context) {
 
                         // บันทึกข้อมูลผลิตภัณฑ์ไปยัง Firestore
                         try {
-                          await FirebaseFirestore.instance.collection('Product').add(productData);
+                          await FirebaseFirestore.instance
+                              .collection('Product')
+                              .add(productData);
                           print('Product added successfully!');
                           Navigator.of(context).pop(); // Close the dialog
                         } catch (e) {
@@ -476,15 +576,13 @@ Widget _buildAddProductDialog(BuildContext context) {
           ),
         ),
       );
-    }
-  );
-}
-
+    });
+  }
 
   // Method for building a text field
   Widget _buildTextField(String label, Function(String?) onSave) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         decoration: InputDecoration(
           filled: true,
@@ -597,9 +695,9 @@ Widget _buildAddProductDialog(BuildContext context) {
       builder: (BuildContext context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Color(0xFF890E1C),
+            color: const Color(0xFF890E1C),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -623,7 +721,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                   ),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Center(
                 child: Image.network(
                   imageUrl,
@@ -632,14 +730,15 @@ Widget _buildAddProductDialog(BuildContext context) {
                   fit: BoxFit.contain,
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text('Product Details: $details',
                   style: const TextStyle(color: Colors.white)),
               Text('Number of products: $numberOfProducts',
                   style: const TextStyle(color: Colors.white)),
               Text('Shipping address: $shippingAddress',
                   style: const TextStyle(color: Colors.white)),
-              Text('Shipper: $shipper', style: const TextStyle(color: Colors.white)),
+              Text('Shipper: $shipper',
+                  style: const TextStyle(color: Colors.white)),
               Text('Recipient name: $recipient',
                   style: const TextStyle(color: Colors.white)),
               Text('Recipient\'s phone number: $recipientPhone',
