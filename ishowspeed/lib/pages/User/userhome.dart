@@ -449,17 +449,60 @@ Widget _buildAddProductDialog(BuildContext context) {
   final ImagePicker _picker = ImagePicker();
   XFile? _imageFile; // สำหรับเก็บภาพที่เลือก
 
+  // ฟังก์ชันสำหรับเลือกวิธีการรับภาพ
+  Future<void> _showImageSourceDialog(BuildContext context, StateSetter setState) {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF890E1C),
+          title: const Text('เลือกรูปภาพ', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.white),
+                title: const Text('เลือกจากแกลลอรี่', style: TextStyle(color: Colors.white)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                    maxWidth: 1800,
+                    maxHeight: 1800,
+                  );
+                  if (image != null) {
+                    setState(() => _imageFile = image);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.white),
+                title: const Text('ถ่ายรูป', style: TextStyle(color: Colors.white)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                    maxWidth: 1800,
+                    maxHeight: 1800,
+                  );
+                  if (image != null) {
+                    setState(() => _imageFile = image);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _uploadImage() async {
     if (_imageFile != null) {
       try {
-        // สร้าง reference ไปยัง Firebase Storage
         final storageRef =
             FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
-
-        // อัปโหลดภาพ
         await storageRef.putFile(File(_imageFile!.path));
-
-        // รับ URL ของภาพ
         _imageUrl = await storageRef.getDownloadURL();
         print('Image uploaded: $_imageUrl');
       } catch (e) {
@@ -489,14 +532,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                   child: IconButton(
                     icon: const Icon(Icons.add_a_photo,
                         color: Color(0xFF890E1C), size: 30),
-                    onPressed: () async {
-                      // เลือกรูปภาพจากอุปกรณ์
-                      _imageFile =
-                          await _picker.pickImage(source: ImageSource.gallery);
-                      if (_imageFile != null) {
-                        setState(() {}); // อัปเดต UI เพื่อแสดงรูปที่เลือก
-                      }
-                    },
+                    onPressed: () => _showImageSourceDialog(context, setState),
                   ),
                 ),
                 const SizedBox(height: 16),
