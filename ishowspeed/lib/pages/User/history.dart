@@ -7,40 +7,87 @@ class UserHistoryPage extends StatefulWidget {
   _UserHistoryPageState createState() => _UserHistoryPageState();
 }
 
-class _UserHistoryPageState extends State<UserHistoryPage> {
-  User? _currentUser; // เก็บผู้ใช้ปัจจุบัน
+class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProviderStateMixin {
+  User? _currentUser;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    
+    _tabController = TabController(length: 2, vsync: this); // ใช้ vsync: this
+    
     // ฟังการเปลี่ยนแปลงสถานะการยืนยันตัวตน
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       setState(() {
-        _currentUser = user; // อัปเดตสถานะผู้ใช้ปัจจุบัน
+        _currentUser = user;
       });
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: UserDashboard(),
-    );
+  void dispose() {
+    _tabController.dispose(); // กำจัด _tabController เมื่อปิดหน้า
+    super.dispose();
   }
-}
 
-class UserDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2, // จำนวนแท็บ
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(80.0), 
+          child: AppBar(
+            backgroundColor: const Color(0xFF890E1C),
+            title: const Text(''),
+            automaticallyImplyLeading: false,
+            bottom: TabBar(
+              controller: _tabController, // ใช้ _tabController
+              indicatorColor: const Color(0xFFFFC809),
+              indicatorWeight: 4.0,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 16,
+              ),
+              tabs: const [
+                Tab(
+                  text: 'Sender',
+                ),
+                Tab(
+                  text: 'Receiver',
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController, // ใช้ _tabController
+          children: [
+            _buildProductList('Products you send', 'red_shirt.png', 'Thorkell', 'Tawan'),
+            _buildProductList('The product you received', 'black_shirt.png', 'Thorkell', 'Tawan'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ฟังก์ชันสำหรับสร้างรายการสินค้า
+  Widget _buildProductList(String title, String imageUrl, String shipper, String recipient) {
     return Container(
-      color: const Color(0xFF890E1C), // Set background color to maroon
+      color: const Color(0xFFFFC809), // Yellow background
       child: Column(
         children: [
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFC809), // Yellow background
+                color: const Color(0xFFFFC809),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -48,10 +95,10 @@ class UserDashboard extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: const Center(
+                    child: Center(
                       child: Text(
-                        'Shipping History',
-                        style: TextStyle(
+                        title,
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
@@ -64,40 +111,11 @@ class UserDashboard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'Products you send:',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
                           ProductItem(
                             name: 'iShowSpeed Shirt',
-                            shipper: 'Thorkell',
-                            recipient: 'Tawan',
-                            imageUrl: 'assets/images/red_shirt.png',
-                          ),
-                          const SizedBox(height: 120),
-                          const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'The product you received:',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                          ProductItem(
-                            name: 'iShowSpeed Shirt',
-                            shipper: 'Thorkell',
-                            recipient: 'Tawan',
-                            imageUrl: 'assets/images/black_shirt.png',
+                            shipper: shipper,
+                            recipient: recipient,
+                            imageUrl: 'assets/images/$imageUrl',
                           ),
                         ],
                       ),
@@ -112,7 +130,7 @@ class UserDashboard extends StatelessWidget {
     );
   }
 
-  // ProductItem widget ที่อยู่ภายใน UserDashboard
+  // ProductItem widget
   Widget ProductItem({
     required String name,
     required String shipper,
@@ -126,7 +144,7 @@ class UserDashboard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // จัดตำแหน่งให้ชิดซ้าย
+        crossAxisAlignment: CrossAxisAlignment.start, 
         children: [
           Row(
             children: [
@@ -179,19 +197,18 @@ class UserDashboard extends StatelessWidget {
               ),
             ],
           ),
-          // เพิ่มข้อความ Click for detail
-          Center( // ใช้ Center เพื่อจัดตำแหน่งข้อความให้อยู่ตรงกลาง
+          Center(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 8), // เพิ่ม Padding ให้กับข้อความ
+              padding: const EdgeInsets.only(bottom: 8), 
               child: GestureDetector(
                 onTap: () {
-                  // ใส่ฟังก์ชันที่ต้องการให้เกิดเมื่อคลิกที่ข้อความนี้
+                  // ใส่ฟังก์ชันที่ต้องการเมื่อคลิกที่ข้อความ
                 },
                 child: const Text(
                   'Click for detail',
                   style: TextStyle(
                     color: Color.fromARGB(255, 255, 0, 0),
-                    decoration: TextDecoration.underline, // ขีดเส้นใต้
+                    decoration: TextDecoration.underline,
                   ),
                 ),
               ),
