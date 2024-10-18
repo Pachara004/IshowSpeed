@@ -20,7 +20,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   User? currentUser;
   String? profileImageUrl;
-  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _gpsController = TextEditingController();
   LatLng? yourLocation;
 
   @override
@@ -41,7 +41,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
         if (userDoc.exists) {
           setState(() {
-            _addressController.text = userDoc['address'] ?? 'No address found';
+            _gpsController.text = userDoc['gps'] ?? 'No address found';
             double latitude = userDoc['latitude'];
             double longitude = userDoc['longitude'];
             yourLocation = LatLng(latitude, longitude); // ตั้งค่าพิกัด
@@ -258,14 +258,14 @@ class _ProfilePageState extends State<ProfilePage> {
                                                   userData['phone'])),
                                           _buildInfoRow('Email',
                                               userData['email'] ?? 'N/A'),
-                                          _buildLocationPicker(context),
-                                          // _buildInfoRow('Address',
-                                          //     userData['address'] ?? 'N/A'),
+                                          _buildInfoRow('Address',
+                                              userData['address'] ?? 'N/A'),
+                                          _buildLocationPicker(context)
                                         ],
                                       ),
                                     ),
                                     const SizedBox(
-                                        height: 150), // ย้าย SizedBox ไปที่นี่
+                                        height: 100), // ย้าย SizedBox ไปที่นี่
                                   ],
                                 ),
                               ),
@@ -357,13 +357,13 @@ class _ProfilePageState extends State<ProfilePage> {
             final selectedLocation = await _showMapDialog(context);
             if (selectedLocation != null) {
               setState(() {
-                _addressController.text = selectedLocation;
+                _gpsController.text = selectedLocation;
               });
               await _updateAddressInFirestore(context, selectedLocation);
             }
           },
           child: TextField(
-            controller: _addressController,
+            controller: _gpsController,
             enabled: false, // ปิดการแก้ไขด้วยมือ
             decoration: InputDecoration(
               hintText: 'Select your location',

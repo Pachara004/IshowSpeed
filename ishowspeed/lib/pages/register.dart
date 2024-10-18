@@ -26,6 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _vehicleController = TextEditingController();
+  final TextEditingController _gpsController = TextEditingController();
   String _userType = 'User'; // Track user type based on selected tab
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -40,6 +41,7 @@ class _RegisterPageState extends State<RegisterPage> {
     _confirmPasswordController.dispose();
     _addressController.dispose();
     _vehicleController.dispose();
+    _gpsController.dispose();
     super.dispose();
   }
 Future<void> _pickImage() async {
@@ -187,6 +189,7 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
         'phone': _phoneController.text,
         'email': _emailController.text,
         'password': _passwordController.text,
+        'gps': _gpsController.text,
         'address': _addressController.text,
         'vehicle': _userType == 'Rider' ? _vehicleController.text : '',
         'userType': _userType,
@@ -297,9 +300,9 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
                           const SizedBox(height: 16),
                           _buildPasswordField('Confirm Password', _confirmPasswordController, _passwordController),
                           const SizedBox(height: 16),
+                          _buildTextField('Address', _addressController, Icons.location_on),
+                          const SizedBox(height: 16),
                           _buildLocationPicker(),
-                          // _buildTextField('Address', _addressController, Icons.location_on),
-                          
                         ],
                       ),
                     ),
@@ -474,7 +477,7 @@ Widget _buildLocationPicker() {
       final selectedLocation = await _showMapDialog(context);
       if (selectedLocation != null) {
         setState(() {
-          _addressController.text = selectedLocation;
+          _gpsController.text = selectedLocation;
         });
       }
     },
@@ -493,16 +496,16 @@ Widget _buildLocationPicker() {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _addressController.text.isEmpty ? 'Select Location' : 'Selected:',
+                  _gpsController.text.isEmpty ? 'Select Location' : 'Selected:',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.black87,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (_addressController.text.isNotEmpty)
+                if (_gpsController.text.isNotEmpty)
                   Text(
-                    _addressController.text,
+                    _gpsController.text,
                     style: const TextStyle(
                       fontSize: 13,
                       color: Colors.black54,
