@@ -328,6 +328,7 @@ class _UserDashboardState extends State<UserDashboard>
                             details: data['productDetails'] ??
                                 'No details available.',
                             recipientPhone: data['recipientPhone'],
+                            data: data,
                           );
                         }).toList(),
                       );
@@ -414,6 +415,7 @@ class _UserDashboardState extends State<UserDashboard>
                             details: data['productDetails'] ??
                                 'No details available.',
                             recipientPhone: data['recipientPhone'],
+                            data: data,
                           );
                         }).toList(),
                       );
@@ -772,6 +774,7 @@ Widget ProductItem({
   required String imageUrl,
   required String details,
   required String recipientPhone,
+  required Map<String, dynamic> data,
 }) {
   return Container(
     margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -822,6 +825,8 @@ Widget ProductItem({
                 sender: sender,
                 recipient: recipient,
                 recipientPhone: recipientPhone,
+                recipientLocationLat: data['recipientLocation']['latitude'],
+                recipientLocationLng: data['recipientLocation']['longitude'],
               );
             },
             style: ElevatedButton.styleFrom(
@@ -848,6 +853,9 @@ void _showProductDetailDialog(
   required String sender,
   required String recipient,
   required String recipientPhone,
+  required double? recipientLocationLat,
+  required double? recipientLocationLng,
+
 }) {
   showDialog(
     context: context,
@@ -903,6 +911,35 @@ void _showProductDetailDialog(
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            if (recipientLocationLat != null && recipientLocationLng != null)
+              SizedBox(
+                height: 200,  // You can adjust the height
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(recipientLocationLat, recipientLocationLng), // Set recipient's location
+                    initialZoom: 15.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      subdomains: ['a', 'b', 'c'],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(recipientLocationLat, recipientLocationLng),
+                          child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 40,
+                            ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 16),
             Text('Sender Name: $sender',
                 style: const TextStyle(color: Colors.white)),
