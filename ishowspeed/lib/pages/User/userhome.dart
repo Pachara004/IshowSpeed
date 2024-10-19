@@ -316,7 +316,6 @@ class _UserDashboardState extends State<UserDashboard>
                           var data = doc.data() as Map<String, dynamic>;
                           return ProductItem(
                             context: context,
-                            name: data['productName'],
                             shipper: data['shipper'] ?? 'Unknown',
                             recipient: data['recipientName'] ?? 'Unknown',
                             imageUrl: data['imageUrl'],
@@ -402,7 +401,6 @@ class _UserDashboardState extends State<UserDashboard>
                           var data = doc.data() as Map<String, dynamic>;
                           return ProductItem(
                             context: context,
-                            name: data['productName'],
                             shipper: data['shipper'] ?? 'Unknown',
                             recipient: data['recipientName'] ?? 'Unknown',
                             imageUrl: data['imageUrl'],
@@ -435,10 +433,8 @@ void _showAddProductDialog(BuildContext context) {
 // Widget method for building the add product dialog
 Widget _buildAddProductDialog(BuildContext context) {
   final _formKey = GlobalKey<FormState>();
-  String? _productName,
+  String? 
       _productDetails,
-      _numberOfProducts,
-      _shippingAddress,
        _recipientName,
       _recipientPhone;
   String? _imageUrl; // สำหรับเก็บ URL ของภาพ
@@ -692,7 +688,6 @@ Widget _buildTextField(String label, Function(String?) onSave) {
 // Method for product items
 Widget ProductItem({
   required BuildContext context, // รับ context
-  required String name,
   required String shipper,
   required String recipient,
   required String imageUrl,
@@ -722,11 +717,7 @@ Widget ProductItem({
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Name: $name',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                Text(
-                  'Shipper: $shipper',
+                  'Detail: $details',
                   style: const TextStyle(color: Colors.white),
                 ),
                 Text(
@@ -808,8 +799,6 @@ void _showProductDetailDialog(
             ),
             const SizedBox(height: 16),
             Text('Product Details: $details',
-                style: const TextStyle(color: Colors.white)),
-            Text('Shipper: $shipper',
                 style: const TextStyle(color: Colors.white)),
             Text('Recipient name: $recipient',
                 style: const TextStyle(color: Colors.white)),
