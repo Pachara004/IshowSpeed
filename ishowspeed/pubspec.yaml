@@ -48,6 +48,7 @@ dependencies:
   location: ^6.0.2
   connectivity_plus: ^6.0.5
   image_cropper: ^8.0.2
+  dropdown_search: ^6.0.1
 
 dev_dependencies:
   flutter_test:

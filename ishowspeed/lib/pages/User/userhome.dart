@@ -22,6 +22,8 @@ class _UserHomePageState extends State<UserHomePage> {
   String? _profileImageUrl;
   String? _username;
   String? _phone;
+  List<User> _users = []; // รายชื่อผู้ใช้ทั้งหมด
+  User? _selectedUser; // ผู้ใช้ที่เลือก
 
   @override
   void initState() {
@@ -190,6 +192,7 @@ class _UserDashboardState extends State<UserDashboard>
   String? _username;
   String? _phone;
   late TabController _tabController;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -433,10 +436,7 @@ void _showAddProductDialog(BuildContext context) {
 // Widget method for building the add product dialog
 Widget _buildAddProductDialog(BuildContext context) {
   final _formKey = GlobalKey<FormState>();
-  String? 
-      _productDetails,
-       _recipientName,
-      _recipientPhone;
+  String? _productDetails, _recipientName, _recipientPhone;
   String? _imageUrl; // สำหรับเก็บ URL ของภาพ
 
   // ตัวแปรสำหรับเลือกภาพ
@@ -594,17 +594,17 @@ Widget _buildAddProductDialog(BuildContext context) {
                         subdomains: ['a', 'b', 'c'],
                       ),
                       MarkerLayer(
-                              markers: [
-                                  Marker(
-                                    point: msuLocation,
-                                    child: const Icon(
-                                      Icons.location_on,
-                                      color: Colors.red,
-                                      size: 40,
-                                    ),
-                                  ),
-                              ],
+                        markers: [
+                          Marker(
+                            point: msuLocation,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 40,
                             ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -617,7 +617,6 @@ Widget _buildAddProductDialog(BuildContext context) {
                     (value) => _recipientPhone = value),
                 const SizedBox(height: 16),
                 // Flutter Map for selecting the location
-        
 
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -790,11 +789,34 @@ void _showProductDetailDialog(
             ),
             const SizedBox(height: 16),
             Center(
-              child: Image.network(
-                imageUrl,
-                width: 200,
-                height: 200,
-                fit: BoxFit.contain,
+              child: GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        content: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            child: Text('Close'),
+                            onPressed: () {
+                              Navigator.of(context).pop(); // ปิดกล่องโต้ตอบ
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: Image.network(
+                  imageUrl,
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
             const SizedBox(height: 16),
