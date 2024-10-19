@@ -188,7 +188,6 @@ class UserDashboard extends StatefulWidget {
 
 class _UserDashboardState extends State<UserDashboard>
     with SingleTickerProviderStateMixin {
-      
   User? _currentUser;
   String? _profileImageUrl;
   String? _username;
@@ -515,14 +514,17 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
       }
     }
   }
-final ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
-final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
-final ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
-final LatLng msuLocation = const LatLng(16.2469, 103.2496);
+
+  final ValueNotifier<LatLng?> selectedLocationNotifier =
+      ValueNotifier<LatLng?>(null);
+  final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+  final ValueNotifier<LocationData?> currentLocationNotifier =
+      ValueNotifier<LocationData?>(null);
+  final LatLng msuLocation = const LatLng(16.2469, 103.2496);
 
   return StatefulBuilder(builder: (BuildContext context, StateSetter setState) {
-    LatLng _selectedLocation = LatLng(16.2469, 103.2496);
-    var msuLocation = LatLng(16.2469, 103.2496);
+    LatLng _selectedLocation = const LatLng(16.2469, 103.2496);
+    var msuLocation = const LatLng(16.2469, 103.2496);
 
     void _handleTap(
         TapPosition tapPosition, LatLng point, StateSetter setState) {
@@ -602,7 +604,8 @@ final LatLng msuLocation = const LatLng(16.2469, 103.2496);
                         future:
                             Future.delayed(const Duration(milliseconds: 100)),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.done) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.done) {
                             return ValueListenableBuilder<LatLng?>(
                               valueListenable: selectedLocationNotifier,
                               builder: (context, selectedLocation, _) {
@@ -855,7 +858,6 @@ void _showProductDetailDialog(
   required String recipientPhone,
   required double? recipientLocationLat,
   required double? recipientLocationLng,
-
 }) {
   showDialog(
     context: context,
@@ -893,7 +895,7 @@ void _showProductDetailDialog(
                         ),
                         actions: <Widget>[
                           TextButton(
-                            child: Text('Close'),
+                            child: const Text('Close'),
                             onPressed: () {
                               Navigator.of(context).pop(); // ปิดกล่องโต้ตอบ
                             },
@@ -914,26 +916,29 @@ void _showProductDetailDialog(
             const SizedBox(height: 16),
             if (recipientLocationLat != null && recipientLocationLng != null)
               SizedBox(
-                height: 200,  // You can adjust the height
+                height: 200, // You can adjust the height
                 child: FlutterMap(
                   options: MapOptions(
-                    initialCenter: LatLng(recipientLocationLat, recipientLocationLng), // Set recipient's location
+                    initialCenter: LatLng(recipientLocationLat,
+                        recipientLocationLng), // Set recipient's location
                     initialZoom: 15.0,
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                       subdomains: ['a', 'b', 'c'],
                     ),
                     MarkerLayer(
                       markers: [
                         Marker(
-                          point: LatLng(recipientLocationLat, recipientLocationLng),
+                          point: LatLng(
+                              recipientLocationLat, recipientLocationLng),
                           child: const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 40,
-                            ),
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 40,
+                          ),
                         ),
                       ],
                     ),
@@ -941,16 +946,55 @@ void _showProductDetailDialog(
                 ),
               ),
             const SizedBox(height: 16),
-            Text('Location: (${recipientLocationLat.toString()}, ${recipientLocationLng.toString()})',
+            Text(
+                'Location: (${recipientLocationLat.toString()}, ${recipientLocationLng.toString()})',
                 style: const TextStyle(color: Colors.white)),
-            Text('Sender Name: $sender',
-                style: const TextStyle(color: Colors.white)),
-            Text('Product Details: $details',
-                style: const TextStyle(color: Colors.white)),
-            Text('Recipient name: $recipient',
-                style: const TextStyle(color: Colors.white)),
-            Text('Recipient\'s phone number: $recipientPhone',
-                style: const TextStyle(color: Colors.white)),
+            RichText(
+              text: TextSpan(
+                children: [
+                  const TextSpan(
+                    text: 'Sender Name:\n',
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 20), // ข้อความที่ไม่ใช่ตัวแปร
+                  ),
+                  TextSpan(
+                    text: sender, // ตัวแปร sender
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                  const TextSpan(
+                    text: 'Product Details:\n',
+                    style: TextStyle(color: Colors.black, fontSize: 20),
+                  ),
+                  TextSpan(
+                    text: details, // ตัวแปร details
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                  const TextSpan(
+                    text: 'Recipient name:\n',
+                    style: TextStyle(color: Colors.black, fontSize: 20),
+                  ),
+                  TextSpan(
+                    text: recipient, // ตัวแปร recipient
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                  const TextSpan(
+                    text: 'Recipient\'s phone number:\n',
+                    style: TextStyle(color: Colors.black, fontSize: 20),
+                  ),
+                  TextSpan(
+                    text: recipientPhone, // ตัวแปร recipientPhone
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
