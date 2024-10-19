@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:location/location.dart';
 
 class UserHomePage extends StatefulWidget {
   @override
@@ -39,9 +40,9 @@ class _UserHomePageState extends State<UserHomePage> {
         });
 
         // Log ข้อมูลผู้ใช้
-        print("User ID: ${_currentUser!.uid}");
-        print("Email: ${_currentUser!.email}");
-        print("Phone: ${_currentUser!.phoneNumber}");
+        log("User ID: ${_currentUser!.uid}");
+        log("Email: ${_currentUser!.email}");
+        log("Phone: ${_currentUser!.phoneNumber}");
 
         // ดึงข้อมูลผู้ใช้จาก Firestore
         DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
@@ -60,8 +61,8 @@ class _UserHomePageState extends State<UserHomePage> {
 
         // Log ข้อมูลโปรไฟล์ (หากมี)
         log(_phone.toString());
-        print("Profile Image URL: $_profileImageUrl");
-        print("Username: $_username");
+        log("Profile Image URL: $_profileImageUrl");
+        log("Username: $_username");
       }
     });
   }
@@ -83,8 +84,8 @@ class _UserHomePageState extends State<UserHomePage> {
       });
 
       // Log ข้อมูลโปรไฟล์ (หากมี)
-      print("Profile Image URL: $_profileImageUrl");
-      print("Username: $_username");
+      log("Profile Image URL: $_profileImageUrl");
+      log("Username: $_username");
     }
   }
 
@@ -187,6 +188,7 @@ class UserDashboard extends StatefulWidget {
 
 class _UserDashboardState extends State<UserDashboard>
     with SingleTickerProviderStateMixin {
+      
   User? _currentUser;
   String? _profileImageUrl;
   String? _username;
@@ -319,7 +321,8 @@ class _UserDashboardState extends State<UserDashboard>
                           var data = doc.data() as Map<String, dynamic>;
                           return ProductItem(
                             context: context,
-                            shipper: data['shipper'] ?? 'Unknown',
+                            sender:
+                                data['Sender Name'] ?? _username ?? 'Unknown',
                             recipient: data['recipientName'] ?? 'Unknown',
                             imageUrl: data['imageUrl'],
                             details: data['productDetails'] ??
@@ -339,7 +342,7 @@ class _UserDashboardState extends State<UserDashboard>
             padding: const EdgeInsets.all(16),
             child: ElevatedButton(
               onPressed: () {
-                _showAddProductDialog(context);
+                _showAddProductDialog(context, _username ?? 'Unknown');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFAB000D),
@@ -404,7 +407,8 @@ class _UserDashboardState extends State<UserDashboard>
                           var data = doc.data() as Map<String, dynamic>;
                           return ProductItem(
                             context: context,
-                            shipper: data['shipper'] ?? 'Unknown',
+                            sender:
+                                data['Sender Name'] ?? _username ?? 'Unknown',
                             recipient: data['recipientName'] ?? 'Unknown',
                             imageUrl: data['imageUrl'],
                             details: data['productDetails'] ??
@@ -426,15 +430,16 @@ class _UserDashboardState extends State<UserDashboard>
 }
 
 // Method for showing the add product dialog
-void _showAddProductDialog(BuildContext context) {
+void _showAddProductDialog(BuildContext context, String senderName) {
   showDialog(
     context: context,
-    builder: (BuildContext context) => _buildAddProductDialog(context),
+    builder: (BuildContext context) =>
+        _buildAddProductDialog(context, senderName),
   );
 }
 
 // Widget method for building the add product dialog
-Widget _buildAddProductDialog(BuildContext context) {
+Widget _buildAddProductDialog(BuildContext context, String senderName) {
   final _formKey = GlobalKey<FormState>();
   String? _productDetails, _recipientName, _recipientPhone;
   String? _imageUrl; // สำหรับเก็บ URL ของภาพ
@@ -502,16 +507,29 @@ Widget _buildAddProductDialog(BuildContext context) {
             FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
         await storageRef.putFile(File(_imageFile!.path));
         _imageUrl = await storageRef.getDownloadURL();
-        print('Image uploaded: $_imageUrl');
+        log('Image uploaded: $_imageUrl');
       } catch (e) {
-        print('Failed to upload image: $e');
+        log('Failed to upload image: $e');
       }
     }
   }
+final ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
+final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+final ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
+final LatLng msuLocation = const LatLng(16.2469, 103.2496);
 
   return StatefulBuilder(builder: (BuildContext context, StateSetter setState) {
     LatLng _selectedLocation = LatLng(16.2469, 103.2496);
     var msuLocation = LatLng(16.2469, 103.2496);
+
+    void _handleTap(
+        TapPosition tapPosition, LatLng point, StateSetter setState) {
+      print("Tapped at: $point");
+      setState(() {
+        _selectedLocation = point;
+      });
+    }
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
@@ -572,41 +590,102 @@ Widget _buildAddProductDialog(BuildContext context) {
                     ),
                   ),
                 ],
-                const Text('Select recipient location on map:',
+                const Text('Select delivery location:',
                     style: TextStyle(color: Colors.white, fontSize: 18)),
                 SizedBox(
                   height: 200,
-                  child: FlutterMap(
-                    mapController: MapController(),
-                    options: MapOptions(
-                      initialCenter: _selectedLocation,
-                      minZoom: 13.0,
-                      onTap: (tapPosition, point) {
-                        setState(() {
-                          _selectedLocation = point;
-                        });
-                      },
-                    ),
+                  child: Stack(
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        subdomains: ['a', 'b', 'c'],
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: msuLocation,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 40,
+                      FutureBuilder<void>(
+                        future:
+                            Future.delayed(const Duration(milliseconds: 100)),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.done) {
+                            return ValueListenableBuilder<LatLng?>(
+                              valueListenable: selectedLocationNotifier,
+                              builder: (context, selectedLocation, _) {
+                                return FlutterMap(
+                                  options: MapOptions(
+                                    initialCenter: msuLocation,
+                                    initialZoom: 15.0,
+                                    onTap: (_, point) {
+                                      selectedLocationNotifier.value = point;
+                                      setState(() {
+                                        // อัพเดตค่าสำหรับแสดงในส่วนอื่นของ UI
+                                        _selectedLocation = point;
+                                      });
+                                    },
+                                    onMapReady: () {
+                                      isMapLoaded.value = true;
+                                    },
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate:
+                                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      subdomains: const ['a', 'b', 'c'],
+                                    ),
+                                    MarkerLayer(
+                                      markers: [
+                                        if (selectedLocation != null)
+                                          Marker(
+                                            point: selectedLocation,
+                                            child: const Icon(
+                                              Icons.place,
+                                              color: Colors.blue,
+                                              size: 40,
+                                            ),
+                                          ),
+                                        if (selectedLocation == null)
+                                          Marker(
+                                            point: msuLocation,
+                                            child: const Icon(
+                                              Icons.location_on,
+                                              color: Colors.red,
+                                              size: 40,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                          return Container(
+                            color: Colors.white,
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'กำลังโหลดแผนที่...',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ],
                   ),
+                ),
+                ValueListenableBuilder<LatLng?>(
+                  valueListenable: selectedLocationNotifier,
+                  builder: (context, selectedLocation, _) {
+                    return Text(
+                      selectedLocation != null
+                          ? 'Selected Location: ${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}'
+                          : 'Selected Location: Not selected',
+                      style: const TextStyle(color: Colors.white),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
@@ -635,6 +714,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                       await _uploadImage();
 
                       Map<String, dynamic> productData = {
+                        'Sender Name': senderName,
                         'productDetails': _productDetails,
                         'recipientName': _recipientName,
                         'recipientPhone': _recipientPhone,
@@ -650,10 +730,10 @@ Widget _buildAddProductDialog(BuildContext context) {
                         await FirebaseFirestore.instance
                             .collection('Product')
                             .add(productData);
-                        print('Product added successfully!');
+                        log('Product added successfully!');
                         Navigator.of(context).pop();
                       } catch (e) {
-                        print('Failed to add product: $e');
+                        log('Failed to add product: $e');
                       }
                     }
                   },
@@ -687,7 +767,7 @@ Widget _buildTextField(String label, Function(String?) onSave) {
 // Method for product items
 Widget ProductItem({
   required BuildContext context, // รับ context
-  required String shipper,
+  required String sender,
   required String recipient,
   required String imageUrl,
   required String details,
@@ -716,6 +796,10 @@ Widget ProductItem({
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  'Sender: $sender',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                Text(
                   'Detail: $details',
                   style: const TextStyle(color: Colors.white),
                 ),
@@ -735,7 +819,7 @@ Widget ProductItem({
                 context, // ส่ง context ให้ฟังก์ชันนี้
                 imageUrl: imageUrl,
                 details: details,
-                shipper: shipper,
+                sender: sender,
                 recipient: recipient,
                 recipientPhone: recipientPhone,
               );
@@ -761,7 +845,7 @@ void _showProductDetailDialog(
   BuildContext context, {
   required String imageUrl,
   required String details,
-  required String shipper,
+  required String sender,
   required String recipient,
   required String recipientPhone,
 }) {
@@ -820,6 +904,8 @@ void _showProductDetailDialog(
               ),
             ),
             const SizedBox(height: 16),
+            Text('Sender Name: $sender',
+                style: const TextStyle(color: Colors.white)),
             Text('Product Details: $details',
                 style: const TextStyle(color: Colors.white)),
             Text('Recipient name: $recipient',
