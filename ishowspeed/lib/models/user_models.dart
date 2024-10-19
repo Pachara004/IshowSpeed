@@ -1,16 +1,17 @@
 // To parse this JSON data, do
 //
-//     final usermodels = usermodelsFromJson(jsonString);
+//     final Usermodel = UsermodelFromJson(jsonString);
 
 import 'dart:convert';
 
-Usermodels usermodelsFromJson(String str) => Usermodels.fromJson(json.decode(str));
+Usermodel UsermodelFromJson(String str) => Usermodel.fromJson(json.decode(str));
 
-String usermodelsToJson(Usermodels data) => json.encode(data.toJson());
+String UsermodelToJson(Usermodel data) => json.encode(data.toJson());
 
-class Usermodels {
+class Usermodel {
     String address;
     String email;
+    String gps;
     String password;
     String phone;
     String profileImage;
@@ -18,9 +19,10 @@ class Usermodels {
     String username;
     String vehicle;
 
-    Usermodels({
+    Usermodel({
         required this.address,
         required this.email,
+        required this.gps,
         required this.password,
         required this.phone,
         required this.profileImage,
@@ -29,9 +31,10 @@ class Usermodels {
         required this.vehicle,
     });
 
-    factory Usermodels.fromJson(Map<String, dynamic> json) => Usermodels(
+    factory Usermodel.fromJson(Map<String, dynamic> json) => Usermodel(
         address: json["address"],
         email: json["email"],
+        gps: json["gps"],
         password: json["password"],
         phone: json["phone"],
         profileImage: json["profileImage"],
@@ -43,6 +46,7 @@ class Usermodels {
     Map<String, dynamic> toJson() => {
         "address": address,
         "email": email,
+        "gps": gps,
         "password": password,
         "phone": phone,
         "profileImage": profileImage,

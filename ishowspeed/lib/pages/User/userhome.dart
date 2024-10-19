@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:ishowspeed/pages/User/history.dart';
 import 'package:ishowspeed/pages/User/profile.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:latlong2/latlong.dart';
 
 class UserHomePage extends StatefulWidget {
   @override
@@ -320,8 +322,6 @@ class _UserDashboardState extends State<UserDashboard>
                             imageUrl: data['imageUrl'],
                             details: data['productDetails'] ??
                                 'No details available.',
-                            numberOfProducts: data['numberOfProducts'],
-                            shippingAddress: data['shippingAddress'],
                             recipientPhone: data['recipientPhone'],
                           );
                         }).toList(),
@@ -408,8 +408,6 @@ class _UserDashboardState extends State<UserDashboard>
                             imageUrl: data['imageUrl'],
                             details: data['productDetails'] ??
                                 'No details available.',
-                            numberOfProducts: data['numberOfProducts'],
-                            shippingAddress: data['shippingAddress'],
                             recipientPhone: data['recipientPhone'],
                           );
                         }).toList(),
@@ -441,7 +439,7 @@ Widget _buildAddProductDialog(BuildContext context) {
       _productDetails,
       _numberOfProducts,
       _shippingAddress,
-      _recipientName,
+       _recipientName,
       _recipientPhone;
   String? _imageUrl; // สำหรับเก็บ URL ของภาพ
 
@@ -450,19 +448,22 @@ Widget _buildAddProductDialog(BuildContext context) {
   XFile? _imageFile; // สำหรับเก็บภาพที่เลือก
 
   // ฟังก์ชันสำหรับเลือกวิธีการรับภาพ
-  Future<void> _showImageSourceDialog(BuildContext context, StateSetter setState) {
+  Future<void> _showImageSourceDialog(
+      BuildContext context, StateSetter setState) {
     return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF890E1C),
-          title: const Text('เลือกรูปภาพ', style: TextStyle(color: Colors.white)),
+          title:
+              const Text('เลือกรูปภาพ', style: TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library, color: Colors.white),
-                title: const Text('เลือกจากแกลลอรี่', style: TextStyle(color: Colors.white)),
+                title: const Text('เลือกจากแกลลอรี่',
+                    style: TextStyle(color: Colors.white)),
                 onTap: () async {
                   Navigator.pop(context);
                   final XFile? image = await _picker.pickImage(
@@ -477,7 +478,8 @@ Widget _buildAddProductDialog(BuildContext context) {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Colors.white),
-                title: const Text('ถ่ายรูป', style: TextStyle(color: Colors.white)),
+                title: const Text('ถ่ายรูป',
+                    style: TextStyle(color: Colors.white)),
                 onTap: () async {
                   Navigator.pop(context);
                   final XFile? image = await _picker.pickImage(
@@ -512,6 +514,8 @@ Widget _buildAddProductDialog(BuildContext context) {
   }
 
   return StatefulBuilder(builder: (BuildContext context, StateSetter setState) {
+    LatLng _selectedLocation = LatLng(16.2469, 103.2496);
+    var msuLocation = LatLng(16.2469, 103.2496);
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
@@ -540,12 +544,10 @@ Widget _buildAddProductDialog(BuildContext context) {
                   'Add a product photo',
                   style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
-                // แสดงรูปภาพที่เลือก
                 if (_imageFile != null) ...[
                   const SizedBox(height: 16),
                   GestureDetector(
                     onTap: () {
-                      // แสดงภาพใน dialog ขนาดใหญ่เมื่อกดที่ภาพ
                       showDialog(
                         context: context,
                         builder: (BuildContext context) {
@@ -556,7 +558,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                                 File(_imageFile!.path),
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                height: 300, // หรือกำหนดความสูงตามที่ต้องการ
+                                height: 300,
                               ),
                             ),
                           );
@@ -564,7 +566,7 @@ Widget _buildAddProductDialog(BuildContext context) {
                       );
                     },
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8), // มุมมน
+                      borderRadius: BorderRadius.circular(8),
                       child: Image.file(
                         File(_imageFile!.path),
                         width: 150,
@@ -574,19 +576,53 @@ Widget _buildAddProductDialog(BuildContext context) {
                     ),
                   ),
                 ],
+                const Text('Select recipient location on map:',
+                    style: TextStyle(color: Colors.white, fontSize: 18)),
+                SizedBox(
+                  height: 200,
+                  child: FlutterMap(
+                    mapController: MapController(),
+                    options: MapOptions(
+                      initialCenter: _selectedLocation,
+                      minZoom: 13.0,
+                      onTap: (tapPosition, point) {
+                        setState(() {
+                          _selectedLocation = point;
+                        });
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        subdomains: ['a', 'b', 'c'],
+                      ),
+                      MarkerLayer(
+                              markers: [
+                                  Marker(
+                                    point: msuLocation,
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                    'Product name', (value) => _productName = value),
-                _buildTextField(
                     'Product details', (value) => _productDetails = value),
-                _buildTextField(
-                    'Number of products', (value) => _numberOfProducts = value),
-                _buildTextField(
-                    'Shipping address', (value) => _shippingAddress = value),
                 _buildTextField(
                     'Recipient name', (value) => _recipientName = value),
                 _buildTextField('Recipient\'s phone number',
                     (value) => _recipientPhone = value),
+                const SizedBox(height: 16),
+                // Flutter Map for selecting the location
+        
+
                 const SizedBox(height: 16),
                 ElevatedButton(
                   child: const Text('Confirm'),
@@ -599,31 +635,28 @@ Widget _buildAddProductDialog(BuildContext context) {
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
 
-                      // อัปโหลดภาพไปยัง Firebase Storage
-                      // รับ user ID ของผู้ใช้ที่เข้าสู่ระบบ
                       User? user = FirebaseAuth.instance.currentUser;
-                      String? userId = user?.uid; // userId จะเก็บ uid ของผู้ใช้
+                      String? userId = user?.uid;
                       await _uploadImage();
 
-                      // สร้าง Map สำหรับข้อมูลผลิตภัณฑ์
                       Map<String, dynamic> productData = {
-                        'productName': _productName,
                         'productDetails': _productDetails,
-                        'numberOfProducts': _numberOfProducts,
-                        'shippingAddress': _shippingAddress,
                         'recipientName': _recipientName,
                         'recipientPhone': _recipientPhone,
-                        'imageUrl': _imageUrl, // เก็บ URL ของภาพ
-                        'userId': userId, // เพิ่ม userID
+                        'imageUrl': _imageUrl,
+                        'userId': userId,
+                        'recipientLocation': {
+                          'latitude': _selectedLocation.latitude,
+                          'longitude': _selectedLocation.longitude,
+                        }, // Save selected location
                       };
 
-                      // บันทึกข้อมูลผลิตภัณฑ์ไปยัง Firestore
                       try {
                         await FirebaseFirestore.instance
                             .collection('Product')
                             .add(productData);
                         print('Product added successfully!');
-                        Navigator.of(context).pop(); // Close the dialog
+                        Navigator.of(context).pop();
                       } catch (e) {
                         print('Failed to add product: $e');
                       }
@@ -664,8 +697,6 @@ Widget ProductItem({
   required String recipient,
   required String imageUrl,
   required String details,
-  required String numberOfProducts,
-  required String shippingAddress,
   required String recipientPhone,
 }) {
   return Container(
@@ -712,11 +743,8 @@ Widget ProductItem({
             onPressed: () {
               _showProductDetailDialog(
                 context, // ส่ง context ให้ฟังก์ชันนี้
-                name: name,
                 imageUrl: imageUrl,
                 details: details,
-                numberOfProducts: numberOfProducts,
-                shippingAddress: shippingAddress,
                 shipper: shipper,
                 recipient: recipient,
                 recipientPhone: recipientPhone,
@@ -741,11 +769,8 @@ Widget ProductItem({
 // Method for showing the product detail dialog
 void _showProductDetailDialog(
   BuildContext context, {
-  required String name,
   required String imageUrl,
   required String details,
-  required String numberOfProducts,
-  required String shippingAddress,
   required String shipper,
   required String recipient,
   required String recipientPhone,
@@ -770,15 +795,6 @@ void _showProductDetailDialog(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-                Expanded(
-                  child: Text(
-                    'Product Name: $name',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -792,10 +808,6 @@ void _showProductDetailDialog(
             ),
             const SizedBox(height: 16),
             Text('Product Details: $details',
-                style: const TextStyle(color: Colors.white)),
-            Text('Number of products: $numberOfProducts',
-                style: const TextStyle(color: Colors.white)),
-            Text('Shipping address: $shippingAddress',
                 style: const TextStyle(color: Colors.white)),
             Text('Shipper: $shipper',
                 style: const TextStyle(color: Colors.white)),
