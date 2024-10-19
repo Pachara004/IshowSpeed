@@ -941,6 +941,8 @@ void _showProductDetailDialog(
                 ),
               ),
             const SizedBox(height: 16),
+            Text('Location: (${recipientLocationLat.toString()}, ${recipientLocationLng.toString()})',
+                style: const TextStyle(color: Colors.white)),
             Text('Sender Name: $sender',
                 style: const TextStyle(color: Colors.white)),
             Text('Product Details: $details',

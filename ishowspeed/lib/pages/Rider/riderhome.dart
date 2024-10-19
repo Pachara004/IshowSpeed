@@ -1,3 +1,7 @@
+import 'dart:developer';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ishowspeed/pages/Rider/profilerider.dart';
 
@@ -7,12 +11,118 @@ class RiderHomePage extends StatefulWidget {
 }
 
 class _RiderHomePageState extends State<RiderHomePage> {
-  int _selectedIndex = 0; // ตัวแปรสำหรับติดตาม index ของ BottomNavigationBar
+ int _selectedIndex = 0;
+  User? _currentUser;
+  String? _profileImageUrl;
+  String? _username;
+  String? _phone;
+  List<User> _users = []; // รายชื่อผู้ใช้ทั้งหมด
+  User? _selectedUser; // ผู้ใช้ที่เลือก
 
   @override
+  void initState() {
+    super.initState();
+
+    // ดึงข้อมูลผู้ใช้จาก FirebaseAuth
+    log("message");
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (user != null) {
+        log(user.toString());
+        setState(() {
+          _currentUser = user;
+        });
+
+        // Log ข้อมูลผู้ใช้
+        log("User ID: ${_currentUser!.uid}");
+        log("Email: ${_currentUser!.email}");
+        log("Phone: ${_currentUser!.phoneNumber}");
+
+        // ดึงข้อมูลผู้ใช้จาก Firestore
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        setState(() {
+          _profileImageUrl = userDoc.data()?['profileImage'] ??
+              ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+          _username = userDoc.data()?['username'] ??
+              'Guest'; // ถ้าไม่มี username จะแสดง Guest
+          _phone = userDoc.data()?['phone'];
+        });
+
+        // Log ข้อมูลโปรไฟล์ (หากมี)
+        log(_phone.toString());
+        log("Profile Image URL: $_profileImageUrl");
+        log("Username: $_username");
+      }
+    });
+  }
+
+  void _fetchUserData() async {
+    if (_currentUser != null) {
+      // ดึงรูปโปรไฟล์จาก Firestore
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .get();
+
+      setState(() {
+        _profileImageUrl = userDoc.data()?['profileImage'] ??
+            ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
+        _username = userDoc.data()?['username'] ??
+            'Guest'; // ถ้าไม่มี username จะแสดง Guest
+      });
+
+      // Log ข้อมูลโปรไฟล์ (หากมี)
+      log("Profile Image URL: $_profileImageUrl");
+      log("Username: $_username");
+    }
+  }
+  @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: const Color(0xFF890E1C),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF890E1C),
+        automaticallyImplyLeading: false,
+        actions: [
+          // ใช้ Row เพื่อแสดงรูปโปรไฟล์และชื่อผู้ใช้
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Row(
+              children: [
+                Text(
+                  _username ??
+                      'Guest', // ถ้า _username เป็น null ให้แสดง 'Guest'
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                    ? CircleAvatar(
+                        backgroundImage: NetworkImage(
+                            _profileImageUrl!), // ใช้เครื่องหมาย ! เพื่อบอกว่าไม่เป็น null แน่นอน
+                        radius: 30, // ปรับขนาดรูปโปรไฟล์
+                      )
+                    : const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        radius: 30, // ปรับขนาดเมื่อไม่มีรูป
+                        child: Icon(Icons.person,
+                            color: Color(0xFF890E1C), size: 30),
+                      ),
+                const SizedBox(width: 8), // เว้นช่องว่างระหว่างรูปและชื่อ
+              ],
+            ),
+          ),
+        ],
+      ),
       body: _selectedIndex == 0 ? _buildOrderList() : ProfileRiderPage(), // แสดงหน้า OrderList หรือ ProfileRiderPage ตาม index
 
       bottomNavigationBar: BottomNavigationBar(
@@ -55,10 +165,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
       children: [
         Expanded(
           child: Container(
-            height: 100.0, // ปรับความสูง
-            width: 400.0, // ปรับความกว้างถ้าต้องการ
             padding: const EdgeInsets.all(16.0),
-            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 70.0), // เพิ่ม margin ด้านข้าง
+            margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 60.0), // เพิ่ม margin ด้านข้าง
             decoration: const BoxDecoration(
               color: Color(0xFFFFC809),
               borderRadius: BorderRadius.only(
