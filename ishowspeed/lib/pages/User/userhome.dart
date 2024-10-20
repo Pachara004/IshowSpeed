@@ -305,7 +305,7 @@ class _UserDashboardState extends State<UserDashboard>
                         .collection('Product')
                         .where("userId", isEqualTo: _currentUser?.uid)
                         .where("status",
-                            isNotEqualTo: "accepted") // เพิ่มเงื่อนไขนี้
+                            isEqualTo: "waiting") // เพิ่มเงื่อนไขนี้
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -731,6 +731,7 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                           'latitude': _selectedLocation.latitude,
                           'longitude': _selectedLocation.longitude,
                         }, // Save selected location
+                        'status': 'waiting', // Set status to waiting
                       };
 
                       try {
