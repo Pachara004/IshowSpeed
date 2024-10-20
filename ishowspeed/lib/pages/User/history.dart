@@ -121,7 +121,8 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(child: Text('No products available.'));
+                        return const Center(
+                            child: Text('No products available.'));
                       }
 
                       return Column(
@@ -129,9 +130,12 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                           var data = doc.data() as Map<String, dynamic>;
                           return ProductItem(
                             name: data['productName'] ?? 'Unknown Product',
-                            senderName: data['senderName'] ?? 'Unknown senderName',
-                            recipientName: data['recipientName'] ?? 'Unknown RecipientName',
+                            senderName:
+                                data['senderName'] ?? 'Unknown senderName',
+                            recipientName: data['recipientName'] ??
+                                'Unknown RecipientName',
                             imageUrl: data['imageUrl'] ?? 'N/A',
+                            status: data['status'] ?? 'Unknown', // เพิ่ม status
                           );
                         }).toList(),
                       );
@@ -152,6 +156,7 @@ class _UserHistoryPageState extends State<UserHistoryPage>
     required String senderName,
     required String recipientName,
     required String imageUrl,
+    required String status, // รับค่า status ที่ส่งมา
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -194,7 +199,8 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                 padding: const EdgeInsets.all(8.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Detail button functionality
+                    _showStatusDialog(
+                        context, status); // ใช้ค่า status ที่รับมา
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC809),
@@ -229,6 +235,103 @@ class _UserHistoryPageState extends State<UserHistoryPage>
           ),
         ],
       ),
+    );
+  }
+
+  void _showStatusDialog(BuildContext context, String status) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        // รายการขั้นตอนการจัดส่ง
+        List<String> shippingSteps = [
+          'Order Placed',
+          'Rider Going to Pick Up',
+          'Out for Delivery',
+          'Delivered'
+        ];
+
+        // กำหนดไอคอนแต่ละสถานะ
+        Map<String, IconData> statusIcons = {
+          'Order Placed': Icons.assignment_turned_in, // ใช้ไอคอน "Order Placed"
+          'Rider Going to Pick Up':
+              Icons.motorcycle_sharp, // ใช้ไอคอน "Rider Going to Pick Up"
+          'Out for Delivery': Icons.motorcycle, // ใช้ไอคอน "truck" แทน "bike"
+          'Delivered': Icons.check_circle, // ใช้ไอคอน "Delivered"
+        };
+
+        // ตรวจสอบดัชนีสถานะปัจจุบัน
+        int currentStepIndex = shippingSteps.indexOf(status);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20), // เพิ่ม padding
+            width: 500, // กำหนดความกว้างของ dialog
+            height: 400, // กำหนดความสูงของ dialog
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // หัวข้อของ dialog
+                const Text(
+                  'Shipping Status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24, // ขนาดตัวอักษรใหญ่ขึ้น
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                // ข้อความสถานะปัจจุบัน
+                Text(
+                  'Current status: $status',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // แถบขั้นตอนสถานะ
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(shippingSteps.length, (index) {
+                    return Column(
+                      children: [
+                        Icon(
+                          statusIcons[shippingSteps[index]],
+                          size: 30, // ขนาดไอคอนใหญ่ขึ้น
+                          color: index <= currentStepIndex
+                              ? Colors.green
+                              : Colors.grey,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          shippingSteps[index],
+                          style: TextStyle(
+                            color: index <= currentStepIndex
+                                ? Colors.green
+                                : Colors.grey,
+                            fontSize: 0.2, // ขนาดตัวอักษรใหญ่ขึ้น
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+                const SizedBox(height: 20),
+                // แถบแสดงสถานะ
+                LinearProgressIndicator(
+                  value: (currentStepIndex + 1) / shippingSteps.length,
+                  color: Colors.green,
+                  backgroundColor: Colors.grey[300],
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
