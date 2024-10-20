@@ -9,13 +9,12 @@ class OrderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF890E1C),
-      ),
+      backgroundColor: const Color(0xFF890E1C),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders') // สมมติว่าคุณมี collection ชื่อ 'orders'
-            .where('riderId', isEqualTo: riderId) // เงื่อนไขแสดงเฉพาะออเดอร์ที่ rider รับ
+            .where('riderId',
+                isEqualTo: riderId) // เงื่อนไขแสดงเฉพาะออเดอร์ที่ rider รับ
             .limit(1)
             .snapshots(),
         builder: (context, snapshot) {
@@ -38,10 +37,12 @@ class OrderPage extends StatelessWidget {
           return ListView.builder(
             itemCount: orders.length,
             itemBuilder: (context, index) {
-              var order = orders[index].data() as Map<String, dynamic>; // เข้าถึงข้อมูลในรูปแบบ Map
-              
+              var order = orders[index].data()
+                  as Map<String, dynamic>; // เข้าถึงข้อมูลในรูปแบบ Map
+
               // ใช้ค่าเริ่มต้นหากฟิลด์ไม่พบ
-              var productDetails = order['productDetails'] ?? 'Product Details not available';
+              var productDetails =
+                  order['productDetails'] ?? 'Product Details not available';
               var senderName = order['senderName'] ?? 'N/A';
               var recipientName = order['recipientName'] ?? 'N/A';
               var recipientLocation = order['recipientLocation'] ?? {};
@@ -50,27 +51,37 @@ class OrderPage extends StatelessWidget {
               var status = order['status'] ?? 'N/A';
 
               return Card(
-                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                margin:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                 elevation: 5,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
-                  leading: const Icon(Icons.delivery_dining, size: 40, color: Color(0xFF890E1C)),
+                  leading: const Icon(Icons.delivery_dining,
+                      size: 40, color: Color(0xFF890E1C)),
                   title: Text(
                     productDetails,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Sender: $senderName', style: const TextStyle(color: Colors.black54)),
-                      Text('Recipient: $recipientName', style: const TextStyle(color: Colors.black54)),
-                      Text('Shipping Address: $shippingAddress', style: const TextStyle(color: Colors.black54)),
-                      Text('Created At: $createdAt', style: const TextStyle(color: Colors.black54)),
-                      Text('Status: $status', style: const TextStyle(color: Colors.black54)),
+                      Text('Sender: $senderName',
+                          style: const TextStyle(color: Colors.black54)),
+                      Text('Recipient: $recipientName',
+                          style: const TextStyle(color: Colors.black54)),
+                      Text('Shipping Address: $shippingAddress',
+                          style: const TextStyle(color: Colors.black54)),
+                      Text('Created At: $createdAt',
+                          style: const TextStyle(color: Colors.black54)),
+                      Text('Status: $status',
+                          style: const TextStyle(color: Colors.black54)),
                     ],
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios, color: Color(0xFF890E1C)),
+                    icon: const Icon(Icons.arrow_forward_ios,
+                        color: Color(0xFF890E1C)),
                     onPressed: () {
                       _showOrderDetail(context, order);
                     },
@@ -89,21 +100,35 @@ class OrderPage extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Order Details', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text('Order Details',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Product: ${order['productDetails'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Sender: ${order['senderName'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Recipient: ${order['recipientName'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Phone: ${order['recipientPhone'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Address: ${order['recipientLocation']?['address'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Latitude: ${order['recipientLocation']?['latitude'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Longitude: ${order['recipientLocation']?['longitude'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Created At: ${order['createdAt'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Status: ${order['status'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
-              Text('Updated At: ${order['updatedAt'] ?? 'N/A'}', style: const TextStyle(color: Colors.black)),
+              Text('Product: ${order['productDetails'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text('Sender: ${order['senderName'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text('Recipient: ${order['recipientName'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text('Phone: ${order['recipientPhone'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text(
+                  'Address: ${order['recipientLocation']?['address'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text(
+                  'Latitude: ${order['recipientLocation']?['latitude'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text(
+                  'Longitude: ${order['recipientLocation']?['longitude'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text('Created At: ${order['createdAt'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text('Status: ${order['status'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
+              Text('Updated At: ${order['updatedAt'] ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.black)),
             ],
           ),
           actions: [

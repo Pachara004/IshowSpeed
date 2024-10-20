@@ -80,19 +80,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
         return Scaffold(
           backgroundColor: const Color(0xFF890E1C),
-          appBar: AppBar(
-            title: const Center(
-              child: Text(
-                '',
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-              ),
-            ),
-            // backgroundColor: const Color(0xFFFFC809),
-            backgroundColor: const Color(0xFF890E1C),
-            automaticallyImplyLeading: false,
-            elevation: 0,
-          ),
           body: FutureBuilder<DocumentSnapshot>(
             future:
                 FirebaseFirestore.instance.collection('users').doc(uid).get(),
