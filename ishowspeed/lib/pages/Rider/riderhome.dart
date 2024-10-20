@@ -1,9 +1,29 @@
 import 'dart:developer';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ishowspeed/pages/Rider/profilerider.dart';
+
+// Model class for RecipientLocation
+class RecipientLocation {
+  final String address;
+  final double latitude;
+  final double longitude;
+
+  RecipientLocation({
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  factory RecipientLocation.fromMap(Map<String, dynamic> map) {
+    return RecipientLocation(
+      address: map['address'] ?? '',
+      latitude: (map['latitude'] ?? 0.0).toDouble(),
+      longitude: (map['longitude'] ?? 0.0).toDouble(),
+    );
+  }
+}
 
 class RiderHomePage extends StatefulWidget {
   @override
@@ -11,162 +31,260 @@ class RiderHomePage extends StatefulWidget {
 }
 
 class _RiderHomePageState extends State<RiderHomePage> {
- int _selectedIndex = 0;
+  int _selectedIndex = 0;
   User? _currentUser;
   String? _profileImageUrl;
   String? _username;
   String? _phone;
-  List<User> _users = []; // รายชื่อผู้ใช้ทั้งหมด
-  User? _selectedUser; // ผู้ใช้ที่เลือก
+  List<DocumentSnapshot> _products = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _initializeUser();
+  }
 
-    // ดึงข้อมูลผู้ใช้จาก FirebaseAuth
-    log("message");
-    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+  void _initializeUser() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        log(user.toString());
+        log('Current user ID: ${user.uid}');
         setState(() {
           _currentUser = user;
         });
 
-        // Log ข้อมูลผู้ใช้
-        log("User ID: ${_currentUser!.uid}");
-        log("Email: ${_currentUser!.email}");
-        log("Phone: ${_currentUser!.phoneNumber}");
-
-        // ดึงข้อมูลผู้ใช้จาก Firestore
-        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
-            .instance
-            .collection('users')
-            .doc(_currentUser!.uid)
-            .get();
-
+        await _fetchUserData();
+        await _fetchProducts();
+      } else {
+        log('No user logged in');
         setState(() {
-          _profileImageUrl = userDoc.data()?['profileImage'] ??
-              ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
-          _username = userDoc.data()?['username'] ??
-              'Guest'; // ถ้าไม่มี username จะแสดง Guest
-          _phone = userDoc.data()?['phone'];
+          _isLoading = false;
         });
-
-        // Log ข้อมูลโปรไฟล์ (หากมี)
-        log(_phone.toString());
-        log("Profile Image URL: $_profileImageUrl");
-        log("Username: $_username");
       }
-    });
+    } catch (e) {
+      log('Error in _initializeUser: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  void _fetchUserData() async {
-    if (_currentUser != null) {
-      // ดึงรูปโปรไฟล์จาก Firestore
+  Future<void> _fetchUserData() async {
+    try {
       DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
           .instance
           .collection('users')
           .doc(_currentUser!.uid)
           .get();
 
-      setState(() {
-        _profileImageUrl = userDoc.data()?['profileImage'] ??
-            ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
-        _username = userDoc.data()?['username'] ??
-            'Guest'; // ถ้าไม่มี username จะแสดง Guest
-      });
+      log('User data fetched: ${userDoc.data()}');
 
-      // Log ข้อมูลโปรไฟล์ (หากมี)
-      log("Profile Image URL: $_profileImageUrl");
-      log("Username: $_username");
+      setState(() {
+        _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
+        _username = userDoc.data()?['username'] ?? 'Guest';
+        _phone = userDoc.data()?['phone'];
+      });
+    } catch (e) {
+      log('Error fetching user data: $e');
     }
   }
+
+  Future<void> _fetchProducts() async {
+    try {
+      log('Fetching products...');
+      
+      QuerySnapshot productSnapshot = await FirebaseFirestore.instance
+          .collection('Product')
+          .get();
+
+      log('Products fetched: ${productSnapshot.docs.length}');
+      
+      productSnapshot.docs.forEach((doc) {
+        log('Product data: ${doc.data()}');
+      });
+
+      if (mounted) {
+        setState(() {
+          _products = productSnapshot.docs;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      log('Error fetching products: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _acceptOrder(String productId) async {
+    try {
+      // Update product status
+      await FirebaseFirestore.instance
+          .collection('Product')
+          .doc(productId)
+          .update({
+        'status': 'accepted',
+        'riderId': _currentUser!.uid,
+        'acceptedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create new order
+      await FirebaseFirestore.instance.collection('orders').add({
+        'productId': productId,
+        'riderId': _currentUser!.uid,
+        'status': 'in_progress',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await _fetchProducts();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order accepted successfully!')),
+      );
+    } catch (e) {
+      log('Error accepting order: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to accept order. Please try again.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFF890E1C),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF890E1C),
-        automaticallyImplyLeading: false,
-        actions: [
-          // ใช้ Row เพื่อแสดงรูปโปรไฟล์และชื่อผู้ใช้
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              children: [
-                Text(
-                  _username ??
-                      'Guest', // ถ้า _username เป็น null ให้แสดง 'Guest'
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 15),
-                _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                    ? CircleAvatar(
-                        backgroundImage: NetworkImage(
-                            _profileImageUrl!), // ใช้เครื่องหมาย ! เพื่อบอกว่าไม่เป็น null แน่นอน
-                        radius: 30, // ปรับขนาดรูปโปรไฟล์
-                      )
-                    : const CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 30, // ปรับขนาดเมื่อไม่มีรูป
-                        child: Icon(Icons.person,
-                            color: Color(0xFF890E1C), size: 30),
-                      ),
-                const SizedBox(width: 8), // เว้นช่องว่างระหว่างรูปและชื่อ
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: _selectedIndex == 0 ? _buildOrderList() : ProfileRiderPage(), // แสดงหน้า OrderList หรือ ProfileRiderPage ตาม index
+      appBar: _buildAppBar(),
+      body: _selectedIndex == 0 
+          ? RefreshIndicator(
+              onRefresh: _fetchProducts,
+              child: _buildOrderList(),
+            )
+          : ProfileRiderPage(),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+      floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
 
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF890E1C),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined, size: 30, color: Colors.white),
-            label: 'Home',
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF890E1C),
+      automaticallyImplyLeading: false,
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: Row(
+            children: [
+              Text(
+                _username ?? 'Guest',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 15),
+              _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                  ? CircleAvatar(
+                      backgroundImage: NetworkImage(_profileImageUrl!),
+                      radius: 30,
+                    )
+                  : const CircleAvatar(
+                      backgroundColor: Colors.white,
+                      radius: 30,
+                      child: Icon(Icons.person,
+                          color: Color(0xFF890E1C), size: 30),
+                    ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_4, size: 30, color: Colors.white),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.yellowAccent, // สีที่เด่นขึ้นเมื่อเลือก
-        unselectedItemColor: Colors.grey[400], // สีที่ดูอ่อนลงเมื่อไม่ได้เลือก
-        selectedIconTheme: IconThemeData(size: 35, color: Colors.yellowAccent), // ขนาดและสีไอคอนเมื่อเลือก
-        unselectedIconTheme: IconThemeData(size: 30, color: Colors.grey[400]), // ขนาดและสีไอคอนเมื่อไม่ได้เลือก
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.bold, // น้ำหนักตัวอักษรหนาขึ้นเมื่อเลือก
-          fontSize: 14,
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.normal, // น้ำหนักตัวอักษรเบาลงเมื่อไม่ได้เลือก
-          fontSize: 12,
+      ],
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return FloatingActionButton(
+      onPressed: () {
+        setState(() {
+          _isLoading = true;
+        });
+        _fetchProducts();
+      },
+      child: const Icon(Icons.refresh),
+      backgroundColor: const Color(0xFFFFC809),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      backgroundColor: const Color(0xFF890E1C),
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined, size: 30),
+          label: 'Home',
         ),
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-      ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_4, size: 30),
+          label: 'Profile',
+        ),
+      ],
+      currentIndex: _selectedIndex,
+      selectedItemColor: Colors.yellowAccent,
+      unselectedItemColor: Colors.white,
+      onTap: (index) {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
     );
   }
 
   Widget _buildOrderList() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFC809)),
+        ),
+      );
+    }
+
+    if (_products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'No orders available',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isLoading = true;
+                });
+                _fetchProducts();
+              },
+              child: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFC809),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(16.0),
-            margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 60.0), // เพิ่ม margin ด้านข้าง
+            margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 60.0),
             decoration: const BoxDecoration(
               color: Color(0xFFFFC809),
               borderRadius: BorderRadius.only(
@@ -187,7 +305,20 @@ class _RiderHomePageState extends State<RiderHomePage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  OrderCard(context: context), // ส่ง context เข้าไป
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _products.length,
+                      itemBuilder: (context, index) {
+                        final product = _products[index].data() as Map<String, dynamic>;
+                        return OrderCard(
+                          context: context,
+                          product: product,
+                          productId: _products[index].id,
+                          onAccept: () => _acceptOrder(_products[index].id),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -197,62 +328,76 @@ class _RiderHomePageState extends State<RiderHomePage> {
     );
   }
 
-  Widget OrderCard({required BuildContext context}) {
+  Widget OrderCard({
+    required BuildContext context,
+    required Map<String, dynamic> product,
+    required String productId,
+    required Function onAccept,
+  }) {
+    RecipientLocation location = RecipientLocation.fromMap(
+        product['recipientLocation'] as Map<String, dynamic>);
+
     return Container(
-      padding: EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Color(0xFF890E1C),
+        color: const Color(0xFF890E1C),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Image.asset('assets/images/red_shirt.png', width: 90, height: 90),
+              Image.network(
+                product['imageUrl'] ?? '',
+                width: 90,
+                height: 90,
+                errorBuilder: (context, error, stackTrace) =>
+                    Image.asset('assets/images/red_shirt.png', width: 90, height: 90),
+              ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Text(
-                      'name : IShowSpeed Shirt',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      'Sender: ${product['senderName'] ?? 'N/A'}',
+                      style: const TextStyle(color: Colors.white),
                     ),
                     Text(
-                      'Shipper : Thorkell',
-                      style: TextStyle(color: Colors.white),
+                      'Recipient: ${product['recipientName'] ?? 'N/A'}',
+                      style: const TextStyle(color: Colors.white),
                     ),
                     Text(
-                      'recipient : Tawan',
-                      style: TextStyle(color: Colors.white),
+                      'Address: ${location.address}',
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 35),
                   ],
                 ),
               ),
               ElevatedButton(
-                child: Text('Accept', style: TextStyle(fontSize: 15)),
-                onPressed: () {},
+                onPressed: () => onAccept(),
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.black,
                   backgroundColor: const Color(0xFFFFC809),
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+                child: const Text('Accept', style: TextStyle(fontSize: 15)),
               ),
             ],
           ),
+          const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
               showDialog(
                 context: context,
-                builder: (BuildContext context) => _productDetailDialog(context), // ใช้ฟังก์ชันที่สร้าง Dialog
+                builder: (BuildContext context) =>
+                    _productDetailDialog(context, product, onAccept),
               );
             },
             child: const Text(
@@ -270,95 +415,112 @@ class _RiderHomePageState extends State<RiderHomePage> {
     );
   }
 
-  Widget _productDetailDialog(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
+Widget _productDetailDialog(
+  BuildContext context,
+  Map<String, dynamic> product,
+  Function onAccept,
+) {
+  RecipientLocation location = RecipientLocation.fromMap(
+      product['recipientLocation'] as Map<String, dynamic>);
+
+  return Dialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Container(
+      width: 600,
+      height: 600,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF890E1C),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Container(
-        width: 600,
-        height: 600,
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Color(0xFF890E1C),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: Image.network(
+              product['imageUrl'] ?? '',
+              height: 150,
+              errorBuilder: (context, error, stackTrace) =>
+                  Image.asset('assets/images/red_shirt.png', height: 150),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Product Details:',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Details: ${product['productDetails'] ?? 'N/A'}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Sender: ${product['senderName'] ?? 'N/A'}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Recipient: ${product['recipientName'] ?? 'N/A'}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Recipient\'s phone: ${product['recipientPhone'] ?? 'N/A'}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Address: ${location.address}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Latitude: ${location.latitude}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Longitude: ${location.longitude}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const Spacer(),
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                onAccept();
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.black,
+                backgroundColor: const Color(0xFFFFC809),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Product Name : IShowSpeed Shirt',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-            Center(
-              child: Image.asset('assets/images/red_shirt.png', height: 150),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Product Details:',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              'Cotton clothing weighs 0.16 kilograms.',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Text(
-              'Number of products: 2',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Text(
-              'Shipping address: Big saolao',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Text(
-              'Shipper: Thorkell',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Text(
-              'Recipient name: Mr. Tawan Gamer',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Text(
-              'Recipient\'s phone number: 012345678',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Spacer(),
-            Center(
-              child: ElevatedButton(
-                child: Text('Accept', style: TextStyle(color: Colors.black)),
-                onPressed: () {
-                  // เพิ่ม logic สำหรับ accept ที่นี่
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFFC809),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              child: const Text('Accept Order'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

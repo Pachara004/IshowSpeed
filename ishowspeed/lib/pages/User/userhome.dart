@@ -719,7 +719,7 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                       await _uploadImage();
 
                       Map<String, dynamic> productData = {
-                        'Sender Name': senderName,
+                        'senderName': senderName,
                         'productDetails': _productDetails,
                         'recipientName': _recipientName,
                         'recipientPhone': _recipientPhone,
