@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:ishowspeed/pages/Rider/order.dart';
 import 'package:ishowspeed/pages/Rider/profilerider.dart';
 
 // Model class for RecipientLocation
@@ -93,13 +94,12 @@ class _RiderHomePageState extends State<RiderHomePage> {
   Future<void> _fetchProducts() async {
     try {
       log('Fetching products...');
-      
-      QuerySnapshot productSnapshot = await FirebaseFirestore.instance
-          .collection('Product')
-          .get();
+
+      QuerySnapshot productSnapshot =
+          await FirebaseFirestore.instance.collection('Product').get();
 
       log('Products fetched: ${productSnapshot.docs.length}');
-      
+
       productSnapshot.docs.forEach((doc) {
         log('Product data: ${doc.data()}');
       });
@@ -149,7 +149,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
     } catch (e) {
       log('Error accepting order: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to accept order. Please try again.')),
+        const SnackBar(
+            content: Text('Failed to accept order. Please try again.')),
       );
     }
   }
@@ -159,12 +160,15 @@ class _RiderHomePageState extends State<RiderHomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFF890E1C),
       appBar: _buildAppBar(),
-      body: _selectedIndex == 0 
+      body: _selectedIndex == 0
           ? RefreshIndicator(
               onRefresh: _fetchProducts,
-              child: _buildOrderList(),
+              child:
+                  _buildOrderList(), // นี่คือการแสดง Order list เมื่อเลือก "Home"
             )
-          : ProfileRiderPage(),
+          : _selectedIndex == 1
+              ? ProfileRiderPage() // แสดง Profile เมื่อเลือก "Profile"
+              : OrderPage(riderId: _currentUser!.uid), // ส่ง riderId ไปยัง OrderPage
       bottomNavigationBar: _buildBottomNavigationBar(),
       floatingActionButton: _buildFloatingActionButton(),
     );
@@ -231,6 +235,10 @@ class _RiderHomePageState extends State<RiderHomePage> {
           icon: Icon(Icons.person_4, size: 30),
           label: 'Profile',
         ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.list_alt, size: 30),
+          label: 'Order',
+        ),
       ],
       currentIndex: _selectedIndex,
       selectedItemColor: Colors.yellowAccent,
@@ -284,7 +292,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(16.0),
-            margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 60.0),
+            margin:
+                const EdgeInsets.symmetric(horizontal: 10.0, vertical: 60.0),
             decoration: const BoxDecoration(
               color: Color(0xFFFFC809),
               borderRadius: BorderRadius.only(
@@ -309,7 +318,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
                     child: ListView.builder(
                       itemCount: _products.length,
                       itemBuilder: (context, index) {
-                        final product = _products[index].data() as Map<String, dynamic>;
+                        final product =
+                            _products[index].data() as Map<String, dynamic>;
                         return OrderCard(
                           context: context,
                           product: product,
@@ -352,8 +362,10 @@ class _RiderHomePageState extends State<RiderHomePage> {
                 product['imageUrl'] ?? '',
                 width: 90,
                 height: 90,
-                errorBuilder: (context, error, stackTrace) =>
-                    Image.asset('assets/images/red_shirt.png', width: 90, height: 90),
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                    'assets/images/red_shirt.png',
+                    width: 90,
+                    height: 90),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -382,7 +394,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.black,
                   backgroundColor: const Color(0xFFFFC809),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -415,112 +428,112 @@ class _RiderHomePageState extends State<RiderHomePage> {
     );
   }
 
-Widget _productDetailDialog(
-  BuildContext context,
-  Map<String, dynamic> product,
-  Function onAccept,
-) {
-  RecipientLocation location = RecipientLocation.fromMap(
-      product['recipientLocation'] as Map<String, dynamic>);
+  Widget _productDetailDialog(
+    BuildContext context,
+    Map<String, dynamic> product,
+    Function onAccept,
+  ) {
+    RecipientLocation location = RecipientLocation.fromMap(
+        product['recipientLocation'] as Map<String, dynamic>);
 
-  return Dialog(
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Container(
-      width: 600,
-      height: 600,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF890E1C),
+    return Dialog(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: Image.network(
-              product['imageUrl'] ?? '',
-              height: 150,
-              errorBuilder: (context, error, stackTrace) =>
-                  Image.asset('assets/images/red_shirt.png', height: 150),
+      child: Container(
+        width: 600,
+        height: 600,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF890E1C),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Product Details:',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Details: ${product['productDetails'] ?? 'N/A'}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Sender: ${product['senderName'] ?? 'N/A'}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Recipient: ${product['recipientName'] ?? 'N/A'}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Recipient\'s phone: ${product['recipientPhone'] ?? 'N/A'}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Address: ${location.address}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Latitude: ${location.latitude}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Longitude: ${location.longitude}',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const Spacer(),
-          Center(
-            child: ElevatedButton(
-              onPressed: () {
-                onAccept();
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.black,
-                backgroundColor: const Color(0xFFFFC809),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            const SizedBox(height: 10),
+            Center(
+              child: Image.network(
+                product['imageUrl'] ?? '',
+                height: 150,
+                errorBuilder: (context, error, stackTrace) =>
+                    Image.asset('assets/images/red_shirt.png', height: 150),
               ),
-              child: const Text('Accept Order'),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            const Text(
+              'Product Details:',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Details: ${product['productDetails'] ?? 'N/A'}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Sender: ${product['senderName'] ?? 'N/A'}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Recipient: ${product['recipientName'] ?? 'N/A'}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Recipient\'s phone: ${product['recipientPhone'] ?? 'N/A'}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Address: ${location.address}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Latitude: ${location.latitude}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Longitude: ${location.longitude}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const Spacer(),
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  onAccept();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  backgroundColor: const Color(0xFFFFC809),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Accept Order'),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
