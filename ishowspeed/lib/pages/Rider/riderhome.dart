@@ -96,7 +96,10 @@ class _RiderHomePageState extends State<RiderHomePage> {
       log('Fetching products...');
 
       QuerySnapshot productSnapshot =
-          await FirebaseFirestore.instance.collection('Product').get();
+          await FirebaseFirestore.instance
+            .collection('Product')
+            .where("status", isEqualTo: "waiting")
+            .get();
 
       log('Products fetched: ${productSnapshot.docs.length}');
 
@@ -362,10 +365,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
                 product['imageUrl'] ?? '',
                 width: 90,
                 height: 90,
-                errorBuilder: (context, error, stackTrace) => Image.asset(
-                    'assets/images/red_shirt.png',
-                    width: 90,
-                    height: 90),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -380,12 +379,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                       'Recipient: ${product['recipientName'] ?? 'N/A'}',
                       style: const TextStyle(color: Colors.white),
                     ),
-                    Text(
-                      'Address: ${location.address}',
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    
                   ],
                 ),
               ),
