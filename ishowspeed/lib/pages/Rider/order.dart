@@ -16,6 +16,7 @@ class OrderPage extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('orders') // สมมติว่าคุณมี collection ชื่อ 'orders'
             .where('riderId', isEqualTo: riderId) // เงื่อนไขแสดงเฉพาะออเดอร์ที่ rider รับ
+            .limit(1)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
