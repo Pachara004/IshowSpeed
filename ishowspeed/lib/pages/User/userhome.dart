@@ -304,6 +304,8 @@ class _UserDashboardState extends State<UserDashboard>
                     stream: FirebaseFirestore.instance
                         .collection('Product')
                         .where("userId", isEqualTo: _currentUser?.uid)
+                        .where("status",
+                            isNotEqualTo: "accepted") // เพิ่มเงื่อนไขนี้
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {

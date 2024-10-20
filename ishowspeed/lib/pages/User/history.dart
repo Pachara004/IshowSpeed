@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ishowspeed/pages/User/profile.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserHistoryPage extends StatefulWidget {
   @override
   _UserHistoryPageState createState() => _UserHistoryPageState();
 }
 
-class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProviderStateMixin {
+class _UserHistoryPageState extends State<UserHistoryPage>
+    with SingleTickerProviderStateMixin {
   User? _currentUser;
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    
-    _tabController = TabController(length: 2, vsync: this); // ใช้ vsync: this
-    
-    // ฟังการเปลี่ยนแปลงสถานะการยืนยันตัวตน
+    _tabController = TabController(length: 2, vsync: this);
+
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       setState(() {
         _currentUser = user;
@@ -27,23 +26,30 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
 
   @override
   void dispose() {
-    _tabController.dispose(); // กำจัด _tabController เมื่อปิดหน้า
+    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('User History')),
+        body: const Center(child: Text('User not logged in.')),
+      );
+    }
+
     return DefaultTabController(
-      length: 2, // จำนวนแท็บ
+      length: 2,
       child: Scaffold(
         appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(80.0), 
+          preferredSize: const Size.fromHeight(80.0),
           child: AppBar(
             backgroundColor: const Color(0xFF890E1C),
             title: const Text(''),
             automaticallyImplyLeading: false,
             bottom: TabBar(
-              controller: _tabController, // ใช้ _tabController
+              controller: _tabController,
               indicatorColor: const Color(0xFFFFC809),
               indicatorWeight: 4.0,
               labelColor: Colors.white,
@@ -56,35 +62,30 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
                 fontSize: 16,
               ),
               tabs: const [
-                Tab(
-                  text: 'Sender',
-                ),
-                Tab(
-                  text: 'Receiver',
-                ),
+                Tab(text: 'Sender'),
+                Tab(text: 'Receiver'),
               ],
             ),
           ),
         ),
         body: TabBarView(
-          controller: _tabController, // ใช้ _tabController
+          controller: _tabController,
           children: [
-            _buildProductList('Products you send', 'red_shirt.png', 'Thorkell', 'Tawan'),
-            _buildProductList('The product you received', 'black_shirt.png', 'Thorkell', 'Tawan'),
+            _buildProductList('Products you send', "userId"),
+            _buildProductList('The products you received', "recipientId"),
           ],
         ),
       ),
     );
   }
 
-  // ฟังก์ชันสำหรับสร้างรายการสินค้า
-  Widget _buildProductList(String title, String imageUrl, String shipper, String recipient) {
+  Widget _buildProductList(String title, String filterField) {
     return Container(
-      color: const Color(0xFFFFC809), // Yellow background
-      child: Column(
-        children: [
-          Expanded(
-            child: Container(
+      color: const Color(0xFFFFC809),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFC809),
@@ -106,26 +107,41 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ProductItem(
-                            name: 'iShowSpeed Shirt',
-                            shipper: shipper,
-                            recipient: recipient,
-                            imageUrl: 'assets/images/$imageUrl',
-                          ),
-                        ],
-                      ),
-                    ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('Product')
+                        .where(filterField, isEqualTo: _currentUser!.uid)
+                        .where("status", isEqualTo: "accepted")
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(child: Text('No products available.'));
+                      }
+
+                      return Column(
+                        children: snapshot.data!.docs.map((doc) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          return ProductItem(
+                            name: data['productName'] ?? 'Unknown Product',
+                            senderName: data['senderName'] ?? 'Unknown senderName',
+                            recipientName: data['recipientName'] ?? 'Unknown RecipientName',
+                            imageUrl: data['imageUrl'] ?? 'N/A',
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -133,8 +149,8 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
   // ProductItem widget
   Widget ProductItem({
     required String name,
-    required String shipper,
-    required String recipient,
+    required String senderName,
+    required String recipientName,
     required String imageUrl,
   }) {
     return Container(
@@ -144,16 +160,20 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, 
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Image.asset(
+                child: Image.network(
                   imageUrl,
                   width: 74,
                   height: 80,
+                  errorBuilder: (BuildContext context, Object error,
+                      StackTrace? stackTrace) {
+                    return const Icon(Icons.error); // Handle loading error
+                  },
                 ),
               ),
               Expanded(
@@ -162,18 +182,10 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Name: $name',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      Text(
-                        'Shipper: $shipper',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      Text(
-                        'Recipient: $recipient',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      Text('SenderName: $senderName',
+                          style: const TextStyle(color: Colors.white)),
+                      Text('Recipient: $recipientName',
+                          style: const TextStyle(color: Colors.white)),
                     ],
                   ),
                 ),
@@ -187,7 +199,8 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC809),
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -199,10 +212,10 @@ class _UserHistoryPageState extends State<UserHistoryPage> with SingleTickerProv
           ),
           Center(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 8), 
+              padding: const EdgeInsets.only(bottom: 8),
               child: GestureDetector(
                 onTap: () {
-                  // ใส่ฟังก์ชันที่ต้องการเมื่อคลิกที่ข้อความ
+                  // Add functionality here for clicking on the detail text
                 },
                 child: const Text(
                   'Click for detail',
