@@ -82,10 +82,10 @@ flutter:
     - assets/images/red_shirt.png
     - assets/images/black_shirt.png
     - assets/images/driver_avatar.png
-  fonts:
-    - family: CustomFont
-      fonts:
-        - asset: fonts/CustomFont.ttf
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont.ttf
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

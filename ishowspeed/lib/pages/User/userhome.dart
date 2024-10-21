@@ -820,7 +820,8 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                       String? userId = user?.uid;
                       await _uploadImage();
 
-                      final selectedLocation = selectedLocationNotifier.value ?? msuLocation;
+                      final selectedLocation =
+                          selectedLocationNotifier.value ?? msuLocation;
 
                       Map<String, dynamic> productData = {
                         'senderName': senderName,
@@ -832,8 +833,8 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                         'recipientLocation': {
                           'latitude': selectedLocation.latitude,
                           'longitude': selectedLocation.longitude,
-                          'formattedLocation': '${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}' // เพิ่มค่าพิกัดที่จัดฟอร์แมตแล้ว
-
+                          'formattedLocation':
+                              '${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}' // เพิ่มค่าพิกัดที่จัดฟอร์แมตแล้ว
                         }, // Save selected location
                         'status': 'waiting', // Set status to waiting
                       };
@@ -976,133 +977,136 @@ void _showProductDetailDialog(
           color: const Color(0xFF890E1C),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        content: Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                        ),
-                        actions: <Widget>[
-                          TextButton(
-                            child: const Text('Close'),
-                            onPressed: () {
-                              Navigator.of(context).pop(); // ปิดกล่องโต้ตอบ
-                            },
+        child: SingleChildScrollView(
+          // ใช้ SingleChildScrollView เพื่อแก้ปัญหา overflow
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          content: Image.network(
+                            imageUrl,
+                            fit: BoxFit.contain,
                           ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                child: Image.network(
-                  imageUrl,
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.contain,
+                          actions: <Widget>[
+                            TextButton(
+                              child: const Text('Close'),
+                              onPressed: () {
+                                Navigator.of(context).pop(); // ปิดกล่องโต้ตอบ
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: Image.network(
+                    imageUrl,
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            if (recipientLocationLat != null && recipientLocationLng != null)
-              SizedBox(
-                height: 200, // You can adjust the height
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(recipientLocationLat,
-                        recipientLocationLng), // Set recipient's location
-                    initialZoom: 15.0,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: ['a', 'b', 'c'],
+              const SizedBox(height: 16),
+              if (recipientLocationLat != null && recipientLocationLng != null)
+                SizedBox(
+                  height: 200, // You can adjust the height
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(recipientLocationLat,
+                          recipientLocationLng), // Set recipient's location
+                      initialZoom: 15.0,
                     ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: LatLng(
-                              recipientLocationLat, recipientLocationLng),
-                          child: const Icon(
-                            Icons.location_on,
-                            color: Colors.red,
-                            size: 40,
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        subdomains: ['a', 'b', 'c'],
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(
+                                recipientLocationLat, recipientLocationLng),
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 40,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              Text(
+                  'Location: (${recipientLocationLat.toString()}, ${recipientLocationLng.toString()})',
+                  style: const TextStyle(color: Colors.white)),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'Sender Name:\n',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 20), // ข้อความที่ไม่ใช่ตัวแปร
+                    ),
+                    TextSpan(
+                      text: sender, // ตัวแปร sender
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                    const TextSpan(
+                      text: 'Product Details:\n',
+                      style: TextStyle(color: Colors.black, fontSize: 20),
+                    ),
+                    TextSpan(
+                      text: details, // ตัวแปร details
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                    const TextSpan(
+                      text: 'Recipient name:\n',
+                      style: TextStyle(color: Colors.black, fontSize: 20),
+                    ),
+                    TextSpan(
+                      text: recipient, // ตัวแปร recipient
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                    const TextSpan(
+                      text: 'Recipient\'s phone number:\n',
+                      style: TextStyle(color: Colors.black, fontSize: 20),
+                    ),
+                    TextSpan(
+                      text: recipientPhone, // ตัวแปร recipientPhone
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
                     ),
                   ],
                 ),
               ),
-            const SizedBox(height: 16),
-            Text(
-                'Location: (${recipientLocationLat.toString()}, ${recipientLocationLng.toString()})',
-                style: const TextStyle(color: Colors.white)),
-            RichText(
-              text: TextSpan(
-                children: [
-                  const TextSpan(
-                    text: 'Sender Name:\n',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 20), // ข้อความที่ไม่ใช่ตัวแปร
-                  ),
-                  TextSpan(
-                    text: sender, // ตัวแปร sender
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                  const TextSpan(text: '\n'), // เว้นบรรทัด
-
-                  const TextSpan(
-                    text: 'Product Details:\n',
-                    style: TextStyle(color: Colors.black, fontSize: 20),
-                  ),
-                  TextSpan(
-                    text: details, // ตัวแปร details
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                  const TextSpan(text: '\n'), // เว้นบรรทัด
-
-                  const TextSpan(
-                    text: 'Recipient name:\n',
-                    style: TextStyle(color: Colors.black, fontSize: 20),
-                  ),
-                  TextSpan(
-                    text: recipient, // ตัวแปร recipient
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                  const TextSpan(text: '\n'), // เว้นบรรทัด
-
-                  const TextSpan(
-                    text: 'Recipient\'s phone number:\n',
-                    style: TextStyle(color: Colors.black, fontSize: 20),
-                  ),
-                  TextSpan(
-                    text: recipientPhone, // ตัวแปร recipientPhone
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),

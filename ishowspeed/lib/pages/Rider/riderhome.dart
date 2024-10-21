@@ -39,6 +39,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
   String? _phone;
   List<DocumentSnapshot> _products = [];
   bool _isLoading = true;
+  bool _hasActiveOrder = false; // New variable to track active orders
 
   @override
   void initState() {
@@ -95,11 +96,10 @@ class _RiderHomePageState extends State<RiderHomePage> {
     try {
       log('Fetching products...');
 
-      QuerySnapshot productSnapshot =
-          await FirebaseFirestore.instance
-            .collection('Product')
-            .where("status", isEqualTo: "waiting")
-            .get();
+      QuerySnapshot productSnapshot = await FirebaseFirestore.instance
+          .collection('Product')
+          .where("status", isEqualTo: "waiting")
+          .get();
 
       log('Products fetched: ${productSnapshot.docs.length}');
 
@@ -123,9 +123,51 @@ class _RiderHomePageState extends State<RiderHomePage> {
     }
   }
 
+// Add new method to check for active orders
+  Future<bool> _checkActiveOrders() async {
+    try {
+      QuerySnapshot activeOrders = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('riderId', isEqualTo: _currentUser!.uid)
+          .where('status', whereIn: ['in_progress', 'accepted']).get();
+
+      return activeOrders.docs.isNotEmpty;
+    } catch (e) {
+      log('Error checking active orders: $e');
+      return false;
+    }
+  }
+
   Future<void> _acceptOrder(String productId) async {
     try {
-      // Update product status
+      // ตรวจสอบสถานะผลิตภัณฑ์ก่อนที่จะรับงาน
+      DocumentSnapshot productSnapshot = await FirebaseFirestore.instance
+          .collection('Product')
+          .doc(productId)
+          .get();
+
+      if (productSnapshot.exists) {
+        String status = productSnapshot['status'];
+
+        // ตรวจสอบว่าผลิตภัณฑ์ถูกยอมรับแล้วหรือไม่
+        if (status == 'accepted') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            // ignore: prefer_const_constructors
+            SnackBar(
+              content: const Text(
+                'This order has already been accepted.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors
+                  .orange, // ใช้สีส้มเพื่อแสดงสถานะที่ไม่สามารถดำเนินการได้
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          return; // ออกจากฟังก์ชันหากงานถูกยอมรับแล้ว
+        }
+      }
+
+      // อัปเดตสถานะผลิตภัณฑ์
       await FirebaseFirestore.instance
           .collection('Product')
           .doc(productId)
@@ -135,25 +177,61 @@ class _RiderHomePageState extends State<RiderHomePage> {
         'acceptedAt': FieldValue.serverTimestamp(),
       });
 
-      // Create new order
+      // ดึงข้อมูลของผลิตภัณฑ์
+      var productData = productSnapshot.data() as Map<String, dynamic>?;
+
+      // สร้างคำสั่งซื้อใหม่และเพิ่มข้อมูลของผลิตภัณฑ์ลงในคำสั่งซื้อ
       await FirebaseFirestore.instance.collection('orders').add({
         'productId': productId,
         'riderId': _currentUser!.uid,
         'status': 'in_progress',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        // เพิ่มข้อมูลของผลิตภัณฑ์ลงในคำสั่งซื้อ เช่น ชื่อและราคา
+        'productDetails': productData?['name'] ?? 'Unnamed Product',
+        'productPrice': productData?['price'] ?? 0,
       });
 
+      setState(() {
+        _hasActiveOrder = true;
+      });
       await _fetchProducts();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order accepted successfully!')),
+        SnackBar(
+          content: const Text(
+            'Order accepted successfully!',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'UNDO',
+            textColor: Colors.white,
+            onPressed: () {
+              // ฟังก์ชันที่ต้องการให้ทำเมื่อกดปุ่ม
+            },
+          ),
+        ),
       );
     } catch (e) {
       log('Error accepting order: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to accept order. Please try again.')),
+        SnackBar(
+          content: const Text(
+            'Failed to accept order. Please try again.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'RETRY',
+            textColor: Colors.white,
+            onPressed: () {
+              // ฟังก์ชันที่ต้องการให้ทำเมื่อกดปุ่ม เช่น เรียกฟังก์ชัน retry
+            },
+          ),
+        ),
       );
     }
   }
@@ -171,7 +249,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
             )
           : _selectedIndex == 1
               ? ProfileRiderPage() // แสดง Profile เมื่อเลือก "Profile"
-              : OrderPage(riderId: _currentUser!.uid), // ส่ง riderId ไปยัง OrderPage
+              : OrderPage(
+                  riderId: _currentUser!.uid), // ส่ง riderId ไปยัง OrderPage
       bottomNavigationBar: _buildBottomNavigationBar(),
       floatingActionButton: _buildFloatingActionButton(),
     );
@@ -262,7 +341,26 @@ class _RiderHomePageState extends State<RiderHomePage> {
         ),
       );
     }
-
+    if (_hasActiveOrder) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 48,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'You have an active order.\nPlease complete it before accepting new orders.',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
     if (_products.isEmpty) {
       return Center(
         child: Column(
@@ -379,7 +477,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
                       'Recipient: ${product['recipientName'] ?? 'N/A'}',
                       style: const TextStyle(color: Colors.white),
                     ),
-                    
                   ],
                 ),
               ),
