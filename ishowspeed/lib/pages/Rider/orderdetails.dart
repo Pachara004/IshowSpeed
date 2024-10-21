@@ -1,7 +1,8 @@
 import 'dart:async';
-
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,33 +40,42 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     super.dispose();
   }
 
-  void _startListeningToRiderLocation() {
-    // Assuming the riderId is stored in the order data
-    final riderId = widget.order['riderId'];
-    if (riderId == null) return;
+void _startListeningToRiderLocation() {
+  final riderId = widget.order['riderId'];
+  if (riderId == null) return;
 
-    _locationSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .doc(riderId)
-        .snapshots()
-        .listen((snapshot) {
-      if (snapshot.exists && mounted) {
-        var data = snapshot.data();
-        if (data != null && data['gps'] != null) {
-          setState(() {
-            _currentRiderLocation = LatLng(
-              data['gps']['latitude'],
-              data['gps']['longitude'],
-            );
-          });
-          
-          // Optionally animate the map to follow the rider
-          _mapController.move(_currentRiderLocation!, 15.0);
-        }
+  _locationSubscription = FirebaseFirestore.instance
+      .collection('users')
+      .doc(riderId)
+      .snapshots()
+      .listen((snapshot) {
+    if (snapshot.exists && mounted) {
+      var data = snapshot.data();
+      if (data != null && data['gps'] != null) {
+        setState(() {
+          _currentRiderLocation = LatLng(
+            data['gps']['latitude'],
+            data['gps']['longitude'],
+          );
+        });
+        
+        // Optionally animate the map to follow the rider
+        _mapController.move(_currentRiderLocation!, 15.0);
       }
-    });
-  }
+    }
+  });
 
+  // Start a timer to get the current location every 10 seconds
+  Timer.periodic(Duration(seconds: 1), (timer) async {
+    // Check if the userType is "Rider"
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _currentRiderLocation = LatLng(position.latitude, position.longitude);
+      });
+      // log(position.toString());
+      // _mapController.move(_currentRiderLocation!, 15.0);
+  });
+}
   @override
   Widget build(BuildContext context) {
     var recipientLocationLat = widget.order['recipientLocation']['latitude'];
