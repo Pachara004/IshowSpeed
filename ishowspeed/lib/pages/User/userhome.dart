@@ -304,8 +304,7 @@ class _UserDashboardState extends State<UserDashboard>
                     stream: FirebaseFirestore.instance
                         .collection('Product')
                         .where("userId", isEqualTo: _currentUser?.uid)
-                        .where("status",
-                            isEqualTo: "waiting") // เพิ่มเงื่อนไขนี้
+                        .where("status", isEqualTo: "waiting")
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -517,13 +516,17 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
     }
   }
 
+  List<Map<String, String>> _searchResults = [];
   final ValueNotifier<LatLng?> selectedLocationNotifier =
       ValueNotifier<LatLng?>(null);
   final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
   final ValueNotifier<LocationData?> currentLocationNotifier =
       ValueNotifier<LocationData?>(null);
   final LatLng msuLocation = const LatLng(16.2469, 103.2496);
-
+  final TextEditingController _recipientPhoneController =
+      TextEditingController();
+  final TextEditingController _recipientNameController =
+      TextEditingController();
   return StatefulBuilder(builder: (BuildContext context, StateSetter setState) {
     LatLng _selectedLocation = const LatLng(16.2469, 103.2496);
     var msuLocation = const LatLng(16.2469, 103.2496);
@@ -616,10 +619,11 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                                     initialCenter: msuLocation,
                                     initialZoom: 15.0,
                                     onTap: (_, point) {
-                                      selectedLocationNotifier.value = point;
+                                      selectedLocationNotifier.value =
+                                          point; // อัปเดต selectedLocationNotifier
                                       setState(() {
-                                        // อัพเดตค่าสำหรับแสดงในส่วนอื่นของ UI
-                                        _selectedLocation = point;
+                                        _selectedLocation =
+                                            point; // อัปเดต _selectedLocation
                                       });
                                     },
                                     onMapReady: () {
@@ -697,13 +701,109 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                 const SizedBox(height: 16),
                 _buildTextField(
                     'Product details', (value) => _productDetails = value),
-                _buildTextField(
-                    'Recipient name', (value) => _recipientName = value),
-                _buildTextField('Recipient\'s phone number',
-                    (value) => _recipientPhone = value),
-                const SizedBox(height: 16),
-                // Flutter Map for selecting the location
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              labelText: 'Search Phone Number',
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              prefixIcon: const Icon(Icons.phone),
+                            ),
+                            onChanged: (value) async {
+                              if (value.length >= 3) {
+                                var querySnapshot = await FirebaseFirestore
+                                    .instance
+                                    .collection('users')
+                                    .where('phone',
+                                        isGreaterThanOrEqualTo: value)
+                                    .where('phone',
+                                        isLessThanOrEqualTo: value + '\uf8ff')
+                                    .get();
 
+                                setState(() {
+                                  _searchResults =
+                                      querySnapshot.docs.map((doc) {
+                                    return {
+                                      'phone': doc['phone'] as String,
+                                      'username': doc['username'] as String,
+                                    };
+                                  }).toList();
+                                });
+                              } else {
+                                setState(() {
+                                  _searchResults = [];
+                                });
+                              }
+                            },
+                            validator: (value) => value!.isEmpty
+                                ? 'Phone number is required'
+                                : null,
+                            onSaved: (value) => _recipientPhone = value,
+                          ),
+                          if (_searchResults.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              constraints: const BoxConstraints(maxHeight: 150),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: _searchResults.length,
+                                itemBuilder: (context, index) {
+                                  return ListTile(
+                                    title:
+                                        Text(_searchResults[index]['phone']!),
+                                    subtitle: Text(
+                                        _searchResults[index]['username']!),
+                                    onTap: () {
+                                      setState(() {
+                                        // อัปเดตเบอร์โทรศัพท์และชื่อเมื่อกดเลือกรายชื่อ
+                                        _recipientPhone =
+                                            _searchResults[index]['phone'];
+                                        _recipientName =
+                                            _searchResults[index]['username'];
+                                        _recipientPhoneController.text =
+                                            _recipientPhone!;
+                                        _recipientNameController.text =
+                                            _recipientName!;
+                                        _searchResults = [];
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              labelText: 'Recipient Name',
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              prefixIcon: const Icon(Icons.person),
+                            ),
+                            enabled: false,
+                            controller:
+                                TextEditingController(text: _recipientName),
+                            validator: (value) => value!.isEmpty
+                                ? 'Recipient name is required'
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   child: const Text('Confirm'),
@@ -720,6 +820,8 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                       String? userId = user?.uid;
                       await _uploadImage();
 
+                      final selectedLocation = selectedLocationNotifier.value ?? msuLocation;
+
                       Map<String, dynamic> productData = {
                         'senderName': senderName,
                         'productDetails': _productDetails,
@@ -728,8 +830,10 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                         'imageUrl': _imageUrl,
                         'userId': userId,
                         'recipientLocation': {
-                          'latitude': _selectedLocation.latitude,
-                          'longitude': _selectedLocation.longitude,
+                          'latitude': selectedLocation.latitude,
+                          'longitude': selectedLocation.longitude,
+                          'formattedLocation': '${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}' // เพิ่มค่าพิกัดที่จัดฟอร์แมตแล้ว
+
                         }, // Save selected location
                         'status': 'waiting', // Set status to waiting
                       };
