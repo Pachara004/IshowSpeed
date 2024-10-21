@@ -22,7 +22,7 @@ class _UserHomePageState extends State<UserHomePage> {
   User? _currentUser;
   String? _profileImageUrl;
   String? _username;
-  String? _phone;
+  String? _phoneNumber;
   List<User> _users = []; // รายชื่อผู้ใช้ทั้งหมด
   User? _selectedUser; // ผู้ใช้ที่เลือก
 
@@ -56,36 +56,48 @@ class _UserHomePageState extends State<UserHomePage> {
               ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
           _username = userDoc.data()?['username'] ??
               'Guest'; // ถ้าไม่มี username จะแสดง Guest
-          _phone = userDoc.data()?['phone'];
+          _phoneNumber = userDoc.data()?['phone'];
         });
 
         // Log ข้อมูลโปรไฟล์ (หากมี)
-        log(_phone.toString());
+        log(_phoneNumber.toString());
         log("Profile Image URL: $_profileImageUrl");
         log("Username: $_username");
+        log("Phone: ${_currentUser!.phoneNumber}");
       }
     });
   }
 
   void _fetchUserData() async {
     if (_currentUser != null) {
-      // ดึงรูปโปรไฟล์จาก Firestore
-      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
-          .instance
-          .collection('users')
-          .doc(_currentUser!.uid)
-          .get();
+      try {
+        // ดึงข้อมูลผู้ใช้จาก Firestore
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
 
-      setState(() {
-        _profileImageUrl = userDoc.data()?['profileImage'] ??
-            ''; // ถ้าไม่มี URL รูปจะเป็นค่าว่าง
-        _username = userDoc.data()?['username'] ??
-            'Guest'; // ถ้าไม่มี username จะแสดง Guest
-      });
+        if (userDoc.exists) {
+          setState(() {
+            _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
+            _username = userDoc.data()?['username'] ?? 'Guest';
+            _phoneNumber = userDoc.data()?['phone'] ??
+                'No Phone Number'; // ดึงหมายเลขโทรศัพท์
+          });
 
-      // Log ข้อมูลโปรไฟล์ (หากมี)
-      log("Profile Image URL: $_profileImageUrl");
-      log("Username: $_username");
+          // Log ข้อมูลโปรไฟล์
+          log("Profile Image URL: $_profileImageUrl");
+          log("Username: $_username");
+          log("Phone: $_phoneNumber");
+        } else {
+          log("User document does not exist.");
+        }
+      } catch (e) {
+        log("Error fetching user data: $e");
+      }
+    } else {
+      log("Current user is null.");
     }
   }
 
@@ -191,7 +203,7 @@ class _UserDashboardState extends State<UserDashboard>
   User? _currentUser;
   String? _profileImageUrl;
   String? _username;
-  String? _phone;
+  String? _phoneNumber;
   late TabController _tabController;
   TextEditingController _searchController = TextEditingController();
 
@@ -217,10 +229,42 @@ class _UserDashboardState extends State<UserDashboard>
         setState(() {
           _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
           _username = userDoc.data()?['username'] ?? 'Guest';
-          _phone = userDoc.data()?['phone'];
         });
       }
     });
+  }
+
+  void _fetchUserData() async {
+    if (_currentUser != null) {
+      try {
+        // ดึงข้อมูลผู้ใช้จาก Firestore
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          setState(() {
+            _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
+            _username = userDoc.data()?['username'] ?? 'Guest';
+            _phoneNumber = userDoc.data()?['phone'] ??
+                'No Phone Number'; // ดึงหมายเลขโทรศัพท์
+          });
+
+          // Log ข้อมูลโปรไฟล์
+          log("Profile Image URL: $_profileImageUrl");
+          log("Username: $_username");
+          log("Phone: $_phoneNumber");
+        } else {
+          log("User document does not exist.");
+        }
+      } catch (e) {
+        log("Error fetching user data: $e");
+      }
+    } else {
+      log("Current user is null.");
+    }
   }
 
   @override
@@ -391,7 +435,7 @@ class _UserDashboardState extends State<UserDashboard>
                   StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('Product')
-                        .where("recipientPhone", isEqualTo: _phone)
+                        .where("recipientPhone", isEqualTo: _phoneNumber)
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -538,7 +582,30 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
         _selectedLocation = point;
       });
     }
+  User? _currentUser;
+  String? _profileImageUrl;
+  String? _username;
+  String? _phoneNumber;
+  
+  void _fetchUserData() async {
+  if (_currentUser != null) {
+    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .doc(_currentUser!.uid)
+        .get();
 
+    setState(() {
+      _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
+      _username = userDoc.data()?['username'] ?? 'Guest';
+      _phoneNumber = userDoc.data()?['phone'] ?? ''; // ดึงเบอร์โทรศัพท์
+    });
+
+    log("Profile Image URL: $_profileImageUrl");
+    log("Username: $_username");
+    log("Phone: $_phoneNumber"); // แสดงเบอร์โทรศัพท์ที่ดึงมาจาก Firestore
+  }
+}
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
@@ -707,6 +774,7 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         children: [
+                          
                           TextFormField(
                             decoration: InputDecoration(
                               filled: true,
@@ -729,10 +797,19 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
 
                                 setState(() {
                                   _searchResults =
-                                      querySnapshot.docs.map((doc) {
+                                      querySnapshot.docs.where((doc) {
+                                    var phone = doc.data().containsKey('phone')
+                                        ? doc['phone']
+                                        : null; // ตรวจสอบฟิลด์
+                                    // ตรวจสอบไม่ให้เพิ่มเบอร์โทรศัพท์ของตัวเองลงในผลการค้นหา
+                                    return phone != _phoneNumber;
+                                  }).map((doc) {
+                                    var phone = doc['phone'] as String;
+                                    var username = doc['username'] as String;
+
                                     return {
-                                      'phone': doc['phone'] as String,
-                                      'username': doc['username'] as String,
+                                      'phone': phone,
+                                      'username': username,
                                     };
                                   }).toList();
                                 });
