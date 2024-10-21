@@ -1,20 +1,92 @@
+import 'dart:async';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:ishowspeed/pages/Rider/orderdetails.dart';
+import 'package:ishowspeed/services/storage/geolocator_services.dart';
+import 'package:latlong2/latlong.dart';
 
-class OrderPage extends StatelessWidget {
+class OrderPage extends StatefulWidget {
   final String riderId;
 
   const OrderPage({Key? key, required this.riderId}) : super(key: key);
 
+  @override
+  State<OrderPage> createState() => _OrderPageState();
+}
+
+class _OrderPageState extends State<OrderPage> {
+  Timer? _locationTimer;
+  final MapController _mapController = MapController();
+  LatLng? _currentLocation;
+  StreamSubscription<DocumentSnapshot>? _locationSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLocationUpdates();
+    _listenToLocationUpdates();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationUpdates() {
+    // Update location every 10 seconds
+    _locationTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      try {
+        var location = await GeolocatorServices.getCurrentLocation();
+        if (location != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.riderId)
+              .update({
+            'gps': {
+              'latitude': location.latitude,
+              'longitude': location.longitude,
+              // 'timestamp': FieldValue.serverTimestamp(),
+            },
+          });
+        }
+      } catch (e) {
+        log('Error updating location: $e');
+      }
+    });
+  }
+
+  void _listenToLocationUpdates() {
+    _locationSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.riderId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && mounted) {
+        var data = snapshot.data();
+        if (data != null && data['gps'] != null) {
+          var location = data['gps'];
+          setState(() {
+            _currentLocation = LatLng(
+              location['latitude'],
+              location['longitude'],
+            );
+          });
+        }
+      }
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF890E1C),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('orders')
-            .where('riderId', isEqualTo: riderId)
+            .collection('Product')
+            .where('riderId', isEqualTo: widget.riderId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -38,48 +110,53 @@ class OrderPage extends StatelessWidget {
               var order = orders[index].data() as Map<String, dynamic>;
               var productId = order['productId'];
               var orderId = orders[index].id;
-
               return StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('Product')
                     .doc(productId)
                     .snapshots(),
                 builder: (context, productSnapshot) {
-                  if (productSnapshot.connectionState == ConnectionState.waiting) {
+                  if (productSnapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return const SizedBox(
                       height: 100,
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
 
-                  if (!productSnapshot.hasData || !productSnapshot.data!.exists) {
+                  if (!productSnapshot.hasData ||
+                      !productSnapshot.data!.exists) {
                     log('No product found for productId: $productId');
                     return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 15),
                       child: ListTile(
                         title: Text('Product ID: $productId'),
                         subtitle: const Text('Product data not found'),
                       ),
                     );
                   }
-
-                  var productData = productSnapshot.data!.data() as Map<String, dynamic>;
+                  var productData =
+                      productSnapshot.data!.data() as Map<String, dynamic>;
                   // var productName = productData['name'] ?? 'Product Name not available';
                   var productPrice = productData['price']?.toString() ?? '50 ฿';
                   var senderName = order['senderName'] ?? 'N/A';
                   var recipientName = order['recipientName'] ?? 'N/A';
-                  var shippingAddress = order['recipientLocation']?['address'] ?? 'N/A';
+                  var shippingAddress =
+                      order['recipientLocation']?['address'] ?? 'N/A';
                   var createdAt = order['createdAt'] ?? 'N/A';
                   var status = order['status'] ?? 'N/A';
 
                   return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                     elevation: 3,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ExpansionTile(
-                      leading: const Icon(Icons.delivery_dining, size: 40, color: Color(0xFF890E1C)),
+                      leading: const Icon(Icons.delivery_dining,
+                          size: 40, color: Color(0xFF890E1C)),
                       title: Text(
                         senderName,
                         style: const TextStyle(
@@ -90,7 +167,8 @@ class OrderPage extends StatelessWidget {
                       ),
                       subtitle: Text(
                         'Price: $productPrice',
-                        style: const TextStyle(color: Colors.black54, fontSize: 14),
+                        style: const TextStyle(
+                            color: Colors.black54, fontSize: 14),
                       ),
                       children: [
                         Padding(
@@ -99,10 +177,14 @@ class OrderPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Divider(),
-                              Text('Sender: $senderName', style: _infoTextStyle()),
-                              Text('Recipient: $recipientName', style: _infoTextStyle()),
-                              Text('Shipping Address: $shippingAddress', style: _infoTextStyle()),
-                              Text('Created At: $createdAt', style: _infoTextStyle()),
+                              Text('Sender: $senderName',
+                                  style: _infoTextStyle()),
+                              Text('Recipient: $recipientName',
+                                  style: _infoTextStyle()),
+                              Text('Shipping Address: $shippingAddress',
+                                  style: _infoTextStyle()),
+                              Text('Created At: $createdAt',
+                                  style: _infoTextStyle()),
                               Text('Status: $status', style: _infoTextStyle()),
                             ],
                           ),
@@ -111,14 +193,16 @@ class OrderPage extends StatelessWidget {
                           alignment: MainAxisAlignment.end,
                           children: [
                             TextButton(
-                              onPressed: () => _showOrderDetail(context, order, productData),
+                              onPressed: () =>
+                                  _showOrderDetail(context, order, productData),
                               child: const Text(
                                 'View Full Details',
                                 style: TextStyle(color: Color(0xFF890E1C)),
                               ),
                             ),
                             TextButton(
-                              onPressed: () => _markOrderAsSuccess(orderId, productId),
+                              onPressed: () =>
+                                  _markOrderAsSuccess(orderId, productId),
                               child: const Text(
                                 'Done Order',
                                 style: TextStyle(color: Color(0xFF28A745)),
@@ -146,7 +230,7 @@ class OrderPage extends StatelessWidget {
   }
 
   void _markOrderAsSuccess(String orderId, String productId) {
-    FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+    FirebaseFirestore.instance.collection('Product').doc(orderId).update({
       'status': 'success',
     }).then((value) {
       log('Order status updated to success for orderId: $orderId');
@@ -163,43 +247,16 @@ class OrderPage extends StatelessWidget {
     });
   }
 
-  void _showOrderDetail(BuildContext context, Map<String, dynamic> order, Map<String, dynamic> productData) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Order Details', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Product Information:', style: TextStyle(fontWeight: FontWeight.bold)),
-                // Text('Name: ${productData['name'] ?? 'N/A'}'),
-                Text('Price: ${productData['price']?.toString() ?? '50 ฿'}'),
-                // Text('Description: ${productData['description'] ?? 'N/A'}'),
-                const Divider(),
-                const Text('Order Information:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('Sender: ${order['senderName'] ?? 'N/A'}'),
-                Text('Recipient: ${order['recipientName'] ?? 'N/A'}'),
-                Text('Phone: ${order['recipientPhone'] ?? 'N/A'}'),
-                Text('Address: ${order['recipientLocation']?['address'] ?? 'N/A'}'),
-                Text('Latitude: ${order['recipientLocation']?['latitude'] ?? 'N/A'}'),
-                Text('Longitude: ${order['recipientLocation']?['longitude'] ?? 'N/A'}'),
-                Text('Created At: ${order['createdAt'] ?? 'N/A'}'),
-                Text('Status: ${order['status'] ?? 'N/A'}'),
-                Text('Updated At: ${order['updatedAt'] ?? 'N/A'}'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  void _showOrderDetail(BuildContext context, Map<String, dynamic> order,
+    Map<String, dynamic> productData) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => OrderDetailsPage(
+        order: order,
+        productData: productData,
+        currentLocation: _currentLocation,
+      ),
+    ),
+  );
+}
 }

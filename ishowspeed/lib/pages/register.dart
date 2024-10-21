@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:ishowspeed/services/storage/geolocator_services.dart';
 import 'package:location/location.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -189,7 +190,10 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
         'phone': _phoneController.text,
         'email': _emailController.text,
         'password': _passwordController.text,
-        'gps': _gpsController.text,
+        'gps': {
+          'latitude': _gpsController.text.split(',')[0],
+          'longitude': _gpsController.text.split(',')[1],
+      },
         'address': _addressController.text,
         'vehicle': _userType == 'Rider' ? _vehicleController.text : '',
         'userType': _userType,
@@ -477,7 +481,7 @@ Widget _buildLocationPicker() {
       final selectedLocation = await _showMapDialog(context);
       if (selectedLocation != null) {
         setState(() {
-          _gpsController.text = selectedLocation;
+          _gpsController.text = '${selectedLocation.latitude}, ${selectedLocation.longitude}';
         });
       }
     },
@@ -528,27 +532,14 @@ Widget _buildLocationPicker() {
   );
 }
 
-Future<String?> _showMapDialog(BuildContext context) async {
+Future<LatLng?> _showMapDialog(BuildContext context) async {
   ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
   ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
   ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
-  final msuLocation = LatLng(16.2469, 103.2496);
 
-  // แยกการโหลดตำแหน่งออกไปทำงานแบบ asynchronous
-  Future<void> loadLocation() async {
-    final location = Location();
-    try {
-      final locationData = await location.getLocation();
-      currentLocationNotifier.value = locationData;
-    } catch (e) {
-      print("ไม่สามารถดึงตำแหน่งปัจจุบันได้: $e");
-    }
-  }
+  LatLng _currentLocation = await GeolocatorServices.getCurrentLocation(); // เก็บตำแหน่งปัจจุบัน
 
-  // เริ่มโหลดตำแหน่งหลังจาก dialog แสดง
-  scheduleMicrotask(loadLocation);
-
-  return showDialog<String>(
+  return showDialog<LatLng>(
     context: context,
     barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
     builder: (context) {
@@ -568,7 +559,7 @@ Future<String?> _showMapDialog(BuildContext context) async {
                       builder: (context, selectedLocation, _) {
                         return FlutterMap(
                           options: MapOptions(
-                            initialCenter: msuLocation,
+                            initialCenter: _currentLocation,
                             initialZoom: 15.0,
                             minZoom: 5.0,
                             maxZoom: 18.0,
@@ -597,7 +588,7 @@ Future<String?> _showMapDialog(BuildContext context) async {
                                   ),
                                 if (selectedLocation == null)
                                   Marker(
-                                    point: msuLocation,
+                                    point: _currentLocation,
                                     child: const Icon(
                                       Icons.location_on,
                                       color: Colors.red,
@@ -648,7 +639,7 @@ Future<String?> _showMapDialog(BuildContext context) async {
                   final location = selectedLocationNotifier.value;
                   if (location != null) {
                     Navigator.of(context).pop(
-                      'Lat: ${location.latitude}, Long: ${location.longitude}'
+                      location
                     );
                   } else {
                     Navigator.of(context).pop();

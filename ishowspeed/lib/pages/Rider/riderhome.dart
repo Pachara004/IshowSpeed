@@ -106,7 +106,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
       productSnapshot.docs.forEach((doc) {
         log('Product data: ${doc.data()}');
       });
-
+      _hasActiveOrder = await _checkActiveOrders();
       if (mounted) {
         setState(() {
           _products = productSnapshot.docs;
@@ -127,7 +127,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
   Future<bool> _checkActiveOrders() async {
     try {
       QuerySnapshot activeOrders = await FirebaseFirestore.instance
-          .collection('orders')
+          .collection('Product')
           .where('riderId', isEqualTo: _currentUser!.uid)
           .where('status', whereIn: ['in_progress', 'accepted']).get();
 
@@ -175,22 +175,13 @@ class _RiderHomePageState extends State<RiderHomePage> {
         'status': 'accepted',
         'riderId': _currentUser!.uid,
         'acceptedAt': FieldValue.serverTimestamp(),
+        'productId': productId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // ดึงข้อมูลของผลิตภัณฑ์
       var productData = productSnapshot.data() as Map<String, dynamic>?;
-
-      // สร้างคำสั่งซื้อใหม่และเพิ่มข้อมูลของผลิตภัณฑ์ลงในคำสั่งซื้อ
-      await FirebaseFirestore.instance.collection('orders').add({
-        'productId': productId,
-        'riderId': _currentUser!.uid,
-        'status': 'in_progress',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        // เพิ่มข้อมูลของผลิตภัณฑ์ลงในคำสั่งซื้อ เช่น ชื่อและราคา
-        'productDetails': productData?['name'] ?? 'Unnamed Product',
-        'productPrice': productData?['price'] ?? 0,
-      });
 
       setState(() {
         _hasActiveOrder = true;

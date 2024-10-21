@@ -9,6 +9,7 @@ import 'package:ishowspeed/pages/User/profile.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ishowspeed/services/storage/geolocator_services.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 
@@ -229,6 +230,7 @@ class _UserDashboardState extends State<UserDashboard>
         setState(() {
           _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
           _username = userDoc.data()?['username'] ?? 'Guest';
+          _phoneNumber = userDoc.data()?['phone'];
         });
       }
     });
@@ -324,6 +326,7 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   Widget _buildSenderTab() {
+    log(_phoneNumber.toString());
     return Container(
       color: const Color(0xFFFFC809),
       child: Column(
@@ -366,9 +369,10 @@ class _UserDashboardState extends State<UserDashboard>
                           return ProductItem(
                             context: context,
                             sender:
-                                data['Sender Name'] ?? _username ?? 'Unknown',
+                                data['senderName'] ?? _username ?? 'Unknown',
+                            name: data['productName'] ?? 'Unknown',
                             recipient: data['recipientName'] ?? 'Unknown',
-                            imageUrl: data['imageUrl'],
+                            imageUrl: data['imageUrl'] ?? 'Unknown',
                             details: data['productDetails'] ??
                                 'No details available.',
                             recipientPhone: data['recipientPhone'],
@@ -435,7 +439,9 @@ class _UserDashboardState extends State<UserDashboard>
                   StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('Product')
-                        .where("recipientPhone", isEqualTo: _phoneNumber)
+                        .where("recipientPhone",
+                            isEqualTo:
+                                _phoneNumber) // ตรวจสอบว่า recipientPhone ตรงกับ _phoneNumber
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -450,12 +456,14 @@ class _UserDashboardState extends State<UserDashboard>
                       return Column(
                         children: snapshot.data!.docs.map((doc) {
                           var data = doc.data() as Map<String, dynamic>;
+                          log(data.toString());
+                          log(_phoneNumber.toString());
                           return ProductItem(
                             context: context,
-                            sender:
-                                data['Sender Name'] ?? _username ?? 'Unknown',
+                            sender: data['senderName'] ?? 'Unknown',
+                            name: data['productName'] ?? 'Unknown',
                             recipient: data['recipientName'] ?? 'Unknown',
-                            imageUrl: data['imageUrl'],
+                            imageUrl: data['imageUrl'] ?? 'Unknown',
                             details: data['productDetails'] ??
                                 'No details available.',
                             recipientPhone: data['recipientPhone'],
@@ -487,7 +495,7 @@ void _showAddProductDialog(BuildContext context, String senderName) {
 // Widget method for building the add product dialog
 Widget _buildAddProductDialog(BuildContext context, String senderName) {
   final _formKey = GlobalKey<FormState>();
-  String? _productDetails, _recipientName, _recipientPhone;
+  String? _productName, _productDetails, _recipientName, _recipientPhone;
   String? _imageUrl; // สำหรับเก็บ URL ของภาพ
 
   // ตัวแปรสำหรับเลือกภาพ
@@ -566,7 +574,6 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
   final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
   final ValueNotifier<LocationData?> currentLocationNotifier =
       ValueNotifier<LocationData?>(null);
-  final LatLng msuLocation = const LatLng(16.2469, 103.2496);
   final TextEditingController _recipientPhoneController =
       TextEditingController();
   final TextEditingController _recipientNameController =
@@ -582,30 +589,49 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
         _selectedLocation = point;
       });
     }
-  User? _currentUser;
-  String? _profileImageUrl;
-  String? _username;
-  String? _phoneNumber;
+
+    User? _currentUser;
+    String? _profileImageUrl;
+    String? _username;
+    String? _phoneNumber;
+    LatLng _currentLocation;
+
+    void _fetchUserData() async {
+      if (_currentUser != null) {
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+        LatLng location =
+            await GeolocatorServices.getCurrentLocation(); // ดึงตำแหน่งปัจจุบัน
+        setState(() {
+          _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
+          _username = userDoc.data()?['username'] ?? 'Guest';
+          _phoneNumber = userDoc.data()?['phone'] ?? ''; // ดึงเบอร์โทรศัพท์
+          _currentLocation = location; // อัปเดตสถานะด้วยตำแหน่งปัจจุบัน
+        });
+
+        log("Profile Image URL: $_profileImageUrl");
+        log("Username: $_username");
+        log("Phone: $_phoneNumber"); // แสดงเบอร์โทรศัพท์ที่ดึงมาจาก Firestore
+      }
+    }
+     // ValueNotifiers to track location and map load state
+  final ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
+  final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+  final ValueNotifier<LatLng?> currentLocationNotifier = ValueNotifier<LatLng?>(null);
   
-  void _fetchUserData() async {
-  if (_currentUser != null) {
-    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
-        .instance
-        .collection('users')
-        .doc(_currentUser!.uid)
-        .get();
-
-    setState(() {
-      _profileImageUrl = userDoc.data()?['profileImage'] ?? '';
-      _username = userDoc.data()?['username'] ?? 'Guest';
-      _phoneNumber = userDoc.data()?['phone'] ?? ''; // ดึงเบอร์โทรศัพท์
-    });
-
-    log("Profile Image URL: $_profileImageUrl");
-    log("Username: $_username");
-    log("Phone: $_phoneNumber"); // แสดงเบอร์โทรศัพท์ที่ดึงมาจาก Firestore
+  Future<void> _fetchCurrentLocation() async {
+    try {
+      // Fetch current location using Geolocator
+      LatLng currentLocation = await GeolocatorServices.getCurrentLocation();
+      currentLocationNotifier.value = currentLocation;
+    } catch (e) {
+      print("Failed to fetch current location: $e");
+    }
   }
-}
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
@@ -670,88 +696,86 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                     style: TextStyle(color: Colors.white, fontSize: 18)),
                 SizedBox(
                   height: 200,
-                  child: Stack(
-                    children: [
-                      FutureBuilder<void>(
-                        future:
-                            Future.delayed(const Duration(milliseconds: 100)),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.done) {
-                            return ValueListenableBuilder<LatLng?>(
-                              valueListenable: selectedLocationNotifier,
-                              builder: (context, selectedLocation, _) {
-                                return FlutterMap(
-                                  options: MapOptions(
-                                    initialCenter: msuLocation,
-                                    initialZoom: 15.0,
-                                    onTap: (_, point) {
-                                      selectedLocationNotifier.value =
-                                          point; // อัปเดต selectedLocationNotifier
-                                      setState(() {
-                                        _selectedLocation =
-                                            point; // อัปเดต _selectedLocation
-                                      });
-                                    },
-                                    onMapReady: () {
-                                      isMapLoaded.value = true;
-                                    },
-                                  ),
-                                  children: [
-                                    TileLayer(
-                                      urlTemplate:
-                                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                      subdomains: const ['a', 'b', 'c'],
-                                    ),
-                                    MarkerLayer(
-                                      markers: [
-                                        if (selectedLocation != null)
-                                          Marker(
-                                            point: selectedLocation,
-                                            child: const Icon(
-                                              Icons.place,
-                                              color: Colors.blue,
-                                              size: 40,
-                                            ),
-                                          ),
-                                        if (selectedLocation == null)
-                                          Marker(
-                                            point: msuLocation,
-                                            child: const Icon(
-                                              Icons.location_on,
-                                              color: Colors.red,
-                                              size: 40,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          }
-                          return Container(
-                            color: Colors.white,
-                            child: const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'กำลังโหลดแผนที่...',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
+                  child: FutureBuilder<void>(
+                    future: _fetchCurrentLocation(), // Load current location
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.done &&
+                          currentLocationNotifier.value != null) {
+                        LatLng _currentLocation = LatLng(
+                          currentLocationNotifier.value!.latitude!,
+                          currentLocationNotifier.value!.longitude!,
+                        );
+                        return ValueListenableBuilder<LatLng?>(
+                          valueListenable: selectedLocationNotifier,
+                          builder: (context, selectedLocation, _) {
+                            return FlutterMap(
+                              options: MapOptions(
+                                initialCenter: _currentLocation,
+                                initialZoom: 15.0,
+                                onTap: (_, point) {
+                                  selectedLocationNotifier.value = point;
+                                  setState(() {
+                                    _selectedLocation = point;
+                                  });
+                                },
+                                onMapReady: () {
+                                  isMapLoaded.value = true;
+                                },
                               ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate:
+                                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  subdomains: const ['a', 'b', 'c'],
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    if (selectedLocation != null)
+                                      Marker(
+                                        point: selectedLocation,
+                                        child: const Icon(
+                                          Icons.place,
+                                          color: Colors.blue,
+                                          size: 40,
+                                        ),
+                                      ),
+                                    if (selectedLocation == null)
+                                      Marker(
+                                        point: _currentLocation,
+                                        child: const Icon(
+                                          Icons.location_on,
+                                          color: Colors.red,
+                                          size: 40,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      } else {
+                        return Container(
+                          color: Colors.white,
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Loading map...',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        );
+                      }
+                    },
                   ),
                 ),
                 ValueListenableBuilder<LatLng?>(
@@ -767,6 +791,8 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
+                    'Product Name', (value) => _productName = value),
+                _buildTextField(
                     'Product details', (value) => _productDetails = value),
                 Column(
                   children: [
@@ -774,7 +800,6 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         children: [
-                          
                           TextFormField(
                             decoration: InputDecoration(
                               filled: true,
@@ -902,6 +927,7 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
 
                       Map<String, dynamic> productData = {
                         'senderName': senderName,
+                        'productName': _productName,
                         'productDetails': _productDetails,
                         'recipientName': _recipientName,
                         'recipientPhone': _recipientPhone,
@@ -959,6 +985,7 @@ Widget ProductItem({
   required BuildContext context, // รับ context
   required String sender,
   required String recipient,
+  required String name,
   required String imageUrl,
   required String details,
   required String recipientPhone,
@@ -991,7 +1018,7 @@ Widget ProductItem({
                   style: const TextStyle(color: Colors.white),
                 ),
                 Text(
-                  'Detail: $details',
+                  'Name: $name',
                   style: const TextStyle(color: Colors.white),
                 ),
                 Text(
@@ -1011,6 +1038,7 @@ Widget ProductItem({
                 imageUrl: imageUrl,
                 details: details,
                 sender: sender,
+                name: name,
                 recipient: recipient,
                 recipientPhone: recipientPhone,
                 recipientLocationLat: data['recipientLocation']['latitude'],
@@ -1039,6 +1067,7 @@ void _showProductDetailDialog(
   required String imageUrl,
   required String details,
   required String sender,
+  required String name,
   required String recipient,
   required String recipientPhone,
   required double? recipientLocationLat,
@@ -1147,6 +1176,16 @@ void _showProductDetailDialog(
                     ),
                     TextSpan(
                       text: sender, // ตัวแปร sender
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const TextSpan(text: '\n'), // เว้นบรรทัด
+
+                    const TextSpan(
+                      text: 'Product Name:\n',
+                      style: TextStyle(color: Colors.black, fontSize: 20),
+                    ),
+                    TextSpan(
+                      text: name, // ตัวแปร details
                       style: const TextStyle(color: Colors.white, fontSize: 18),
                     ),
                     const TextSpan(text: '\n'), // เว้นบรรทัด
