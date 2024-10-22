@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path/path.dart' as path;
 
 class OrderDetailsPage extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -30,6 +34,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   final MapController _mapController = MapController();
   bool _isFollowingRider = true;
   Timer? _updateTimer;
+  final ImagePicker _picker = ImagePicker();
+  String? _uploadedImageUrl;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -68,13 +75,14 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         setState(() {
           _currentRiderLocation = LatLng(position.latitude, position.longitude);
         });
-        
+
         // Update Firestore with new location
         _updateRiderLocation(position);
 
         // Move map if following is enabled
         if (_isFollowingRider) {
-          _mapController.move(_currentRiderLocation!, _mapController.camera.zoom);
+          _mapController.move(
+              _currentRiderLocation!, _mapController.camera.zoom);
         }
       }
     });
@@ -120,6 +128,61 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     });
   }
 
+  // เพิ่มฟังก์ชันสำหรับถ่ายรูป
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (photo == null) return;
+
+      setState(() => _isUploading = true);
+
+      // อัพโหลดรูปภาพไปยัง Firebase Storage
+      final String fileName =
+          'order_${widget.order['orderId']}_${DateTime.now().millisecondsSinceEpoch}${path.extension(photo.path)}';
+      final Reference ref =
+          FirebaseStorage.instance.ref().child('order_photos').child(fileName);
+
+      final UploadTask uploadTask = ref.putFile(File(photo.path));
+      final TaskSnapshot taskSnapshot = await uploadTask;
+      final String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+
+      // อัพเดทข้อมูลใน Firestore
+      // อัพเดทข้อมูลใน Firestore
+      await FirebaseFirestore.instance
+          .collection('Product')
+          .doc(widget.order['productId'])
+          .update({
+        'photos': FieldValue.arrayUnion([
+          {
+            'url': downloadUrl,
+            'timestamp': Timestamp
+                .now(), // เปลี่ยนจาก FieldValue.serverTimestamp() เป็น Timestamp.now()
+          }
+        ])
+      });
+
+      setState(() {
+        _uploadedImageUrl = downloadUrl;
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        _showCustomSnackBar('Photo uploaded successfully',
+            backgroundColor: const Color.fromARGB(255, 3, 180, 17));
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        _showCustomSnackBar('Error: ${e.toString()}',
+            backgroundColor: const Color.fromARGB(255, 255, 0, 0));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var recipientLocationLat = widget.order['recipientLocation']['latitude'];
@@ -132,12 +195,14 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: Icon(_isFollowingRider ? Icons.gps_fixed : Icons.gps_not_fixed),
+            icon:
+                Icon(_isFollowingRider ? Icons.gps_fixed : Icons.gps_not_fixed),
             onPressed: () {
               setState(() {
                 _isFollowingRider = !_isFollowingRider;
                 if (_isFollowingRider && _currentRiderLocation != null) {
-                  _mapController.move(_currentRiderLocation!, _mapController.camera.zoom);
+                  _mapController.move(
+                      _currentRiderLocation!, _mapController.camera.zoom);
                 }
               });
             },
@@ -156,7 +221,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                     child: FlutterMap(
                       mapController: _mapController,
                       options: MapOptions(
-                        initialCenter: _currentRiderLocation ?? 
+                        initialCenter: _currentRiderLocation ??
                             LatLng(recipientLocationLat, recipientLocationLng),
                         initialZoom: 15.0,
                         onMapEvent: (event) {
@@ -168,7 +233,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          urlTemplate:
+                              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                           subdomains: const ['a', 'b', 'c'],
                         ),
                         MarkerLayer(
@@ -183,7 +249,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                 ),
                               ),
                             Marker(
-                              point: LatLng(recipientLocationLat, recipientLocationLng),
+                              point: LatLng(
+                                  recipientLocationLat, recipientLocationLng),
                               child: const Icon(
                                 Icons.location_on,
                                 color: Colors.red,
@@ -202,7 +269,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                       child: FloatingActionButton(
                         mini: true,
                         backgroundColor: Colors.white,
-                        child: const Icon(Icons.center_focus_strong, color: Colors.black87),
+                        child: const Icon(Icons.center_focus_strong,
+                            color: Colors.black87),
                         onPressed: () {
                           setState(() => _isFollowingRider = true);
                           _mapController.move(_currentRiderLocation!, 15.0);
@@ -214,20 +282,28 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             _buildSection(
               'Product Information',
               [
-                _buildInfoRow('Name', widget.productData['productName']?.toString() ?? 'N/A'),
-                _buildInfoRow('Price', '${widget.productData['price']?.toString() ?? '50'} ฿'),
+                _buildInfoRow('Name',
+                    widget.productData['productName']?.toString() ?? 'N/A'),
+                _buildInfoRow('Price',
+                    '${widget.productData['price']?.toString() ?? '50'} ฿'),
               ],
             ),
             _buildSection(
               'Order Information',
               [
-                _buildInfoRow('Sender', widget.order['senderName']?.toString() ?? 'N/A'),
-                _buildInfoRow('Recipient', widget.order['recipientName']?.toString() ?? 'N/A'),
-                _buildInfoRow('Phone', widget.order['recipientPhone']?.toString() ?? 'N/A'),
-                _buildInfoRow('Address', widget.order['address']?['address']?.toString() ?? 'N/A'),
-                _buildInfoRow('Status', widget.order['status']?.toString() ?? 'N/A'),
+                _buildInfoRow(
+                    'Sender', widget.order['senderName']?.toString() ?? 'N/A'),
+                _buildInfoRow('Recipient',
+                    widget.order['recipientName']?.toString() ?? 'N/A'),
+                _buildInfoRow('Phone',
+                    widget.order['recipientPhone']?.toString() ?? 'N/A'),
+                _buildInfoRow('Address',
+                    widget.order['address']?['address']?.toString() ?? 'N/A'),
+                _buildInfoRow(
+                    'Status', widget.order['status']?.toString() ?? 'N/A'),
               ],
             ),
+            _buildPhotoButton(),
           ],
         ),
       ),
@@ -256,6 +332,35 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     );
   }
 
+// เพิ่ม Widget สำหรับปุ่มถ่ายรูป
+  Widget _buildPhotoButton() {
+    return Center(
+      // เพิ่ม Center widget
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton.icon(
+          onPressed: _isUploading ? null : _takePhoto,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF890E1C),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+          icon: _isUploading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.camera_alt),
+          label: Text(_isUploading ? 'Uploading...' : 'Take Photo'),
+        ),
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -279,6 +384,21 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCustomSnackBar(String message,
+      {Color? backgroundColor, Color? textColor}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(color: textColor ?? Colors.white), // กำหนดสีข้อความ
+        ),
+        backgroundColor: backgroundColor ?? Colors.blue, // กำหนดสีพื้นหลัง
+        duration: const Duration(seconds: 3), // ระยะเวลาแสดง
+        behavior: SnackBarBehavior.floating, // พฤติกรรมการแสดง
       ),
     );
   }

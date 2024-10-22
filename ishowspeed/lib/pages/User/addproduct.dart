@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -87,9 +88,9 @@ class _AddProductDialogState extends State<AddProductDialog> {
         final storageRef = FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
         await storageRef.putFile(File(_imageFile!.path));
         _imageUrl = await storageRef.getDownloadURL();
-        print('Image uploaded: $_imageUrl');
+        log('Image uploaded: $_imageUrl');
       } catch (e) {
-        print('Failed to upload image: $e');
+        log('Failed to upload image: $e');
       }
     }
   }

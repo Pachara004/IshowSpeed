@@ -16,7 +16,11 @@ class _UserHistoryPageState extends State<UserHistoryPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
+    
+    // Get current user immediately
+    _currentUser = FirebaseAuth.instance.currentUser;
+    
+    // Listen for auth changes
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       setState(() {
         _currentUser = user;
@@ -46,7 +50,6 @@ class _UserHistoryPageState extends State<UserHistoryPage>
           preferredSize: const Size.fromHeight(80.0),
           child: AppBar(
             backgroundColor: const Color(0xFF890E1C),
-            title: const Text(''),
             automaticallyImplyLeading: false,
             bottom: TabBar(
               controller: _tabController,
@@ -71,8 +74,8 @@ class _UserHistoryPageState extends State<UserHistoryPage>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildProductList('Products you send', "userId"),
-            _buildProductList('The products you received', "recipientId"),
+            _buildProductList('Products you sent', "userId"),
+            _buildProductList('Products you received', "recipientId"),
           ],
         ),
       ),
@@ -80,86 +83,71 @@ class _UserHistoryPageState extends State<UserHistoryPage>
   }
 
   Widget _buildProductList(String title, String filterField) {
+    print('Current user ID: ${_currentUser?.uid}'); // Debug print
+    
     return Container(
       color: const Color(0xFFFFC809),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFC809),
-                borderRadius: BorderRadius.circular(10),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Product')
+            .where(filterField, isEqualTo: _currentUser!.uid)
+            .where("status", whereNotIn: ["waiting"])
+            .snapshots(),
+        builder: (context, snapshot) {
+          print('Snapshot data: ${snapshot.data?.docs.length}'); // Debug print
+          
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('No $title available.'),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Center(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('Product')
-                        .where(filterField, isEqualTo: _currentUser!.uid)
-                        .where("status", isEqualTo: "accepted")
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error: ${snapshot.error}'));
-                      }
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(
-                            child: Text('No products available.'));
-                      }
+            );
+          }
 
-                      return Column(
-                        children: snapshot.data!.docs.map((doc) {
-                          var data = doc.data() as Map<String, dynamic>;
-                          return ProductItem(
-                            name: data['productName'] ?? 'Unknown Product',
-                            senderName:
-                                data['senderName'] ?? 'Unknown senderName',
-                            recipientName: data['recipientName'] ??
-                                'Unknown RecipientName',
-                            imageUrl: data['imageUrl'] ?? 'N/A',
-                            status: data['status'] ?? 'Unknown', // เพิ่ม status
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          // Convert docs to list and sort in memory if needed
+          final docs = snapshot.data!.docs.toList()
+            ..sort((a, b) {
+              final statusA = (a.data() as Map<String, dynamic>)['status'] as String;
+              final statusB = (b.data() as Map<String, dynamic>)['status'] as String;
+              return statusA.compareTo(statusB);
+            });
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              var doc = snapshot.data!.docs[index];
+              var data = doc.data() as Map<String, dynamic>;
+              return ProductItem(
+                name: data['productName'] ?? 'Unknown Product',
+                senderName: data['senderName'] ?? 'Unknown Sender',
+                recipientName: data['recipientName'] ?? 'Unknown Recipient',
+                imageUrl: data['imageUrl'] ?? '',
+                status: data['status'] ?? 'Unknown',
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  // ProductItem widget
   Widget ProductItem({
     required String name,
     required String senderName,
     required String recipientName,
     required String imageUrl,
-    required String status, // รับค่า status ที่ส่งมา
+    required String status,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFAB000D),
         borderRadius: BorderRadius.circular(8),
@@ -171,26 +159,50 @@ class _UserHistoryPageState extends State<UserHistoryPage>
             children: [
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Image.network(
-                  imageUrl,
-                  width: 74,
-                  height: 80,
-                  errorBuilder: (BuildContext context, Object error,
-                      StackTrace? stackTrace) {
-                    return const Icon(Icons.error); // Handle loading error
-                  },
-                ),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        width: 74,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 74,
+                            height: 80,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.error),
+                          );
+                        },
+                      )
+                    : Container(
+                        width: 74,
+                        height: 80,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image),
+                      ),
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(9.0),
+                  padding: const EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('SenderName: $senderName',
-                          style: const TextStyle(color: Colors.white)),
-                      Text('Recipient: $recipientName',
-                          style: const TextStyle(color: Colors.white)),
+                      Text(
+                        'Product: $name',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sender: $senderName',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      Text(
+                        'Recipient: $recipientName',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ],
                   ),
                 ),
@@ -198,15 +210,14 @@ class _UserHistoryPageState extends State<UserHistoryPage>
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: ElevatedButton(
-                  onPressed: () {
-                    _showStatusDialog(
-                        context, status); // ใช้ค่า status ที่รับมา
-                  },
+                  onPressed: () => _showStatusDialog(context, status),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC809),
                     foregroundColor: Colors.black,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -218,15 +229,15 @@ class _UserHistoryPageState extends State<UserHistoryPage>
           ),
           Center(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: GestureDetector(
                 onTap: () {
-                  // Add functionality here for clicking on the detail text
+                  // Add functionality for detail view
                 },
                 child: const Text(
                   'Click for detail',
                   style: TextStyle(
-                    color: Color.fromARGB(255, 255, 0, 0),
+                    color: Colors.white,
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -242,7 +253,6 @@ class _UserHistoryPageState extends State<UserHistoryPage>
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        // รายการขั้นตอนการจัดส่ง
         List<String> shippingSteps = [
           'Order Placed',
           'Rider Going to Pick Up',
@@ -250,16 +260,13 @@ class _UserHistoryPageState extends State<UserHistoryPage>
           'Delivered'
         ];
 
-        // กำหนดไอคอนแต่ละสถานะ
         Map<String, IconData> statusIcons = {
-          'Order Placed': Icons.assignment_turned_in, // ใช้ไอคอน "Order Placed"
-          'Rider Going to Pick Up':
-              Icons.motorcycle_sharp, // ใช้ไอคอน "Rider Going to Pick Up"
-          'Out for Delivery': Icons.motorcycle, // ใช้ไอคอน "truck" แทน "bike"
-          'Delivered': Icons.check_circle, // ใช้ไอคอน "Delivered"
+          'Order Placed': Icons.assignment_turned_in,
+          'Rider Going to Pick Up': Icons.motorcycle_sharp,
+          'Out for Delivery': Icons.motorcycle,
+          'Delivered': Icons.check_circle,
         };
 
-        // ตรวจสอบดัชนีสถานะปัจจุบัน
         int currentStepIndex = shippingSteps.indexOf(status);
 
         return Dialog(
@@ -267,23 +274,19 @@ class _UserHistoryPageState extends State<UserHistoryPage>
             borderRadius: BorderRadius.circular(15),
           ),
           child: Container(
-            padding: const EdgeInsets.all(20), // เพิ่ม padding
-            width: 500, // กำหนดความกว้างของ dialog
-            height: 400, // กำหนดความสูงของ dialog
+            padding: const EdgeInsets.all(20),
+            width: 500,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // หัวข้อของ dialog
                 const Text(
                   'Shipping Status',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 24, // ขนาดตัวอักษรใหญ่ขึ้น
+                    fontSize: 24,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
-                // ข้อความสถานะปัจจุบัน
                 Text(
                   'Current status: $status',
                   style: const TextStyle(
@@ -292,7 +295,6 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                   ),
                 ),
                 const SizedBox(height: 20),
-                // แถบขั้นตอนสถานะ
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: List.generate(shippingSteps.length, (index) {
@@ -300,7 +302,7 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                       children: [
                         Icon(
                           statusIcons[shippingSteps[index]],
-                          size: 30, // ขนาดไอคอนใหญ่ขึ้น
+                          size: 30,
                           color: index <= currentStepIndex
                               ? Colors.green
                               : Colors.grey,
@@ -312,7 +314,7 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                             color: index <= currentStepIndex
                                 ? Colors.green
                                 : Colors.grey,
-                            fontSize: 0.2, // ขนาดตัวอักษรใหญ่ขึ้น
+                            fontSize: 12, // Fixed from 0.2 to 12
                           ),
                         ),
                       ],
@@ -320,13 +322,16 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                   }),
                 ),
                 const SizedBox(height: 20),
-                // แถบแสดงสถานะ
                 LinearProgressIndicator(
                   value: (currentStepIndex + 1) / shippingSteps.length,
                   color: Colors.green,
                   backgroundColor: Colors.grey[300],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
               ],
             ),
           ),
