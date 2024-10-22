@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ishowspeed/services/storage/geolocator_services.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 import 'package:path/path.dart';
@@ -22,7 +23,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String? profileImageUrl;
   final TextEditingController _gpsController = TextEditingController();
   LatLng? yourLocation;
-
+  
   @override
   void initState() {
     super.initState();
@@ -301,30 +302,35 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _updateAddressInFirestore(
-      BuildContext context, String address) async {
-    try {
-      String? userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) {
-        // แสดงข้อความแจ้งเตือนว่าผู้ใช้ไม่ได้ล็อกอิน
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User is not logged in")),
-        );
-        return;
-      }
-
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'address': address,
-      });
+Future<void> _updateAddressInFirestore(
+    BuildContext context, LatLng location) async {
+  try {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Address updated successfully")),
+        const SnackBar(content: Text("User is not logged in")),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to update address: $e")),
-      );
+      return;
     }
+
+    // Update both GPS coordinates and formatted address
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'gps': {
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'formattedLocation': '${location.latitude.toStringAsFixed(6)}, ${location.longitude.toStringAsFixed(6)}'
+      },
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Location updated successfully")),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Failed to update location: $e")),
+    );
   }
+}
 
   Widget _buildLocationPicker(BuildContext context) {
     return Column(
@@ -344,7 +350,8 @@ class _ProfilePageState extends State<ProfilePage> {
             final selectedLocation = await _showMapDialog(context);
             if (selectedLocation != null) {
               setState(() {
-                _gpsController.text = selectedLocation;
+                _gpsController.text = 
+                    '${selectedLocation.latitude.toStringAsFixed(6)}, ${selectedLocation.longitude.toStringAsFixed(6)}';
               });
               await _updateAddressInFirestore(context, selectedLocation);
             }
@@ -364,147 +371,159 @@ class _ProfilePageState extends State<ProfilePage> {
       ],
     );
   }
-
-  Future<String?> _showMapDialog(BuildContext context) async {
-    ValueNotifier<LatLng?> selectedLocationNotifier =
-        ValueNotifier<LatLng?>(null);
-    ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
-    ValueNotifier<LocationData?> currentLocationNotifier =
-        ValueNotifier<LocationData?>(null);
-    final yourlocation = LatLng(16.2469, 103.2496);
-
-    // แยกการโหลดตำแหน่งออกไปทำงานแบบ asynchronous
-    Future<void> loadLocation() async {
-      final location = Location();
-      try {
-        final locationData = await location.getLocation();
-        currentLocationNotifier.value = locationData;
-      } catch (e) {
-        print("ไม่สามารถดึงตำแหน่งปัจจุบันได้: $e");
-      }
+Future<LatLng> _getLocationFromFirestore() async {
+  try {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      // Return default location if user is not logged in
+      return const LatLng(13.7563, 100.5018); // Default to Bangkok
     }
 
-    // เริ่มโหลดตำแหน่งหลังจาก dialog แสดง
-    scheduleMicrotask(loadLocation);
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
 
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Selected Your Tee Yuu'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: Stack(
-              children: [
-                FutureBuilder<void>(
-                  future: Future.delayed(const Duration(
-                      milliseconds: 100)), // รอให้ dialog แสดงก่อน
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done) {
-                      return ValueListenableBuilder<LatLng?>(
-                        valueListenable: selectedLocationNotifier,
-                        builder: (context, selectedLocation, _) {
-                          return FlutterMap(
-                            options: MapOptions(
-                              initialCenter: yourlocation,
-                              initialZoom: 15.0,
-                              minZoom: 5.0,
-                              maxZoom: 18.0,
-                              onTap: (_, point) {
-                                selectedLocationNotifier.value = point;
-                              },
-                              onMapReady: () {
-                                isMapLoaded.value = true;
-                              },
-                            ),
-                            children: [
-                              TileLayer(
-                                urlTemplate:
-                                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                subdomains: const ['a', 'b', 'c'],
-                              ),
-                              MarkerLayer(
-                                markers: [
-                                  if (selectedLocation != null)
-                                    Marker(
-                                      point: selectedLocation,
-                                      child: const Icon(
-                                        Icons.place,
-                                        color: Colors.blue,
-                                        size: 40,
-                                      ),
-                                    ),
-                                  if (selectedLocation == null)
-                                    Marker(
-                                      point: yourlocation,
-                                      child: const Icon(
-                                        Icons.location_on,
-                                        color: Colors.red,
-                                        size: 40,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    }
-                    return Container(
-                      color: Colors.white,
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+    if (userDoc.exists && userDoc.data() != null) {
+      Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+      if (data.containsKey('gps')) {
+        return LatLng(
+          data['gps']['latitude'] as double,
+          data['gps']['longitude'] as double,
+        );
+      }
+    }
+    
+    // If no location is stored, get current location
+    return await GeolocatorServices.getCurrentLocation();
+  } catch (e) {
+    print('Error fetching location from Firestore: $e');
+    // Return default location on error
+    return await GeolocatorServices.getCurrentLocation();
+  }
+}
+  Future<LatLng?> _showMapDialog(BuildContext context) async {
+  ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
+  ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+  ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
+
+  LatLng _currentLocation = await GeolocatorServices.getCurrentLocation(); // เก็บตำแหน่งปัจจุบัน
+  LatLng initialLocation = await _getLocationFromFirestore();
+  return showDialog<LatLng>(
+    context: context,
+    barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Selected Your Tee Yuu'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: Stack(
+            children: [
+              FutureBuilder<void>(
+                future: Future.delayed(const Duration(milliseconds: 100)), // รอให้ dialog แสดงก่อน
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return ValueListenableBuilder<LatLng?>(
+                      valueListenable: selectedLocationNotifier,
+                      builder: (context, selectedLocation, _) {
+                        return FlutterMap(
+                          options: MapOptions(
+                            initialCenter: initialLocation,
+                            initialZoom: 15.0,
+                            minZoom: 5.0,
+                            maxZoom: 18.0,
+                            onTap: (_, point) {
+                              selectedLocationNotifier.value = point;
+                            },
+                            onMapReady: () {
+                              isMapLoaded.value = true;
+                            },
+                          ),
                           children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              'กำลังโหลดแผนที่...',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
+                            TileLayer(
+                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c'],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                if (selectedLocation != null)
+                                  Marker(
+                                    point: selectedLocation,
+                                    child: const Icon(
+                                      Icons.place,
+                                      color: Colors.blue,
+                                      size: 40,
+                                    ),
+                                  ),
+                                if (selectedLocation == null)
+                                  Marker(
+                                    point: initialLocation,
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
-                        ),
-                      ),
+                        );
+                      },
                     );
-                  },
-                ),
-              ],
-            ),
+                  }
+                  return Container(
+                    color: Colors.white,
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'กำลังโหลดแผนที่...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ยกเลิก'),
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: isMapLoaded,
-              builder: (context, loaded, _) {
-                return TextButton(
-                  onPressed: loaded
-                      ? () {
-                          final location = selectedLocationNotifier.value;
-                          if (location != null) {
-                            Navigator.of(context).pop(
-                                'Lat: ${location.latitude}, Long: ${location.longitude}');
-                          } else {
-                            Navigator.of(context).pop();
-                          }
-                        }
-                      : null,
-                  child: const Text('เลือก'),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ยกเลิก'),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: isMapLoaded,
+            builder: (context, loaded, _) {
+              return TextButton(
+                onPressed: loaded ? () {
+                  final location = selectedLocationNotifier.value;
+                  if (location != null) {
+                    Navigator.of(context).pop(
+                      location
+                    );
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                } : null,
+                child: const Text('เลือก'),
+              );
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(

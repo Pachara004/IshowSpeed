@@ -590,6 +590,7 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
       });
     }
 
+    String? currentUserPhone;
     User? _currentUser;
     String? _profileImageUrl;
     String? _username;
@@ -617,20 +618,36 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
         log("Phone: $_phoneNumber"); // แสดงเบอร์โทรศัพท์ที่ดึงมาจาก Firestore
       }
     }
-     // ValueNotifiers to track location and map load state
-  final ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
-  final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
-  final ValueNotifier<LatLng?> currentLocationNotifier = ValueNotifier<LatLng?>(null);
-  
-  Future<void> _fetchCurrentLocation() async {
-    try {
-      // Fetch current location using Geolocator
-      LatLng currentLocation = await GeolocatorServices.getCurrentLocation();
-      currentLocationNotifier.value = currentLocation;
-    } catch (e) {
-      print("Failed to fetch current location: $e");
+
+    Future<void> _getCurrentUserPhone() async {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        currentUserPhone = userDoc.data()?['phone'];
+      }
     }
-  }
+
+    _getCurrentUserPhone();
+    // ValueNotifiers to track location and map load state
+    final ValueNotifier<LatLng?> selectedLocationNotifier =
+        ValueNotifier<LatLng?>(null);
+    final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+    final ValueNotifier<LatLng?> currentLocationNotifier =
+        ValueNotifier<LatLng?>(null);
+
+    Future<void> _fetchCurrentLocation() async {
+      try {
+        // Fetch current location using Geolocator
+        LatLng currentLocation = await GeolocatorServices.getCurrentLocation();
+        currentLocationNotifier.value = currentLocation;
+      } catch (e) {
+        print("Failed to fetch current location: $e");
+      }
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -816,27 +833,26 @@ Widget _buildAddProductDialog(BuildContext context, String senderName) {
                                     .collection('users')
                                     .where('phone',
                                         isGreaterThanOrEqualTo: value)
+                                    .where('userType', isEqualTo: 'User')
                                     .where('phone',
                                         isLessThanOrEqualTo: value + '\uf8ff')
                                     .get();
 
                                 setState(() {
-                                  _searchResults =
-                                      querySnapshot.docs.where((doc) {
-                                    var phone = doc.data().containsKey('phone')
-                                        ? doc['phone']
-                                        : null; // ตรวจสอบฟิลด์
-                                    // ตรวจสอบไม่ให้เพิ่มเบอร์โทรศัพท์ของตัวเองลงในผลการค้นหา
-                                    return phone != _phoneNumber;
-                                  }).map((doc) {
-                                    var phone = doc['phone'] as String;
-                                    var username = doc['username'] as String;
-
-                                    return {
-                                      'phone': phone,
-                                      'username': username,
-                                    };
-                                  }).toList();
+                                  _searchResults = querySnapshot.docs
+                                      .where((doc) {
+                                        // Filter out the current user's phone number
+                                        var phone =
+                                            doc.data()['phone'] as String?;
+                                        return phone != null &&
+                                            phone != currentUserPhone;
+                                      })
+                                      .map((doc) => {
+                                            'phone': doc['phone'] as String,
+                                            'username':
+                                                doc['username'] as String,
+                                          })
+                                      .toList();
                                 });
                               } else {
                                 setState(() {
