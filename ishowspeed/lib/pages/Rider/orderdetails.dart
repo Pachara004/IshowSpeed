@@ -26,56 +26,100 @@ class OrderDetailsPage extends StatefulWidget {
 class _OrderDetailsPageState extends State<OrderDetailsPage> {
   LatLng? _currentRiderLocation;
   StreamSubscription<DocumentSnapshot>? _locationSubscription;
+  StreamSubscription<Position>? _geolocatorSubscription;
   final MapController _mapController = MapController();
-@override
+  bool _isFollowingRider = true;
+  Timer? _updateTimer;
+
+  @override
   void initState() {
     super.initState();
     _currentRiderLocation = widget.currentLocation;
     _startListeningToRiderLocation();
+    _setupLocationUpdates();
   }
 
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _geolocatorSubscription?.cancel();
+    _updateTimer?.cancel();
     super.dispose();
   }
 
-void _startListeningToRiderLocation() {
-  final riderId = widget.order['riderId'];
-  if (riderId == null) return;
-
-  _locationSubscription = FirebaseFirestore.instance
-      .collection('users')
-      .doc(riderId)
-      .snapshots()
-      .listen((snapshot) {
-    if (snapshot.exists && mounted) {
-      var data = snapshot.data();
-      if (data != null && data['gps'] != null) {
-        setState(() {
-          _currentRiderLocation = LatLng(
-            data['gps']['latitude'],
-            data['gps']['longitude'],
-          );
-        });
-        
-        // Optionally animate the map to follow the rider
-        _mapController.move(_currentRiderLocation!, 15.0);
+  void _setupLocationUpdates() async {
+    // Request permission if not granted
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
       }
     }
-  });
 
-  // Start a timer to get the current location every 10 seconds
-  Timer.periodic(Duration(seconds: 1), (timer) async {
-    // Check if the userType is "Rider"
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      setState(() {
-        _currentRiderLocation = LatLng(position.latitude, position.longitude);
+    // Set up continuous location updates
+    _geolocatorSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Update every 10 meters
+      ),
+    ).listen((Position position) {
+      if (mounted) {
+        setState(() {
+          _currentRiderLocation = LatLng(position.latitude, position.longitude);
+        });
+        
+        // Update Firestore with new location
+        _updateRiderLocation(position);
+
+        // Move map if following is enabled
+        if (_isFollowingRider) {
+          _mapController.move(_currentRiderLocation!, _mapController.camera.zoom);
+        }
+      }
+    });
+  }
+
+  Future<void> _updateRiderLocation(Position position) async {
+    final riderId = widget.order['riderId'];
+    if (riderId == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(riderId).update({
+        'gps': {
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'timestamp': FieldValue.serverTimestamp(),
+        }
       });
-      // log(position.toString());
-      // _mapController.move(_currentRiderLocation!, 15.0);
-  });
-}
+    } catch (e) {
+      log('Error updating rider location: $e');
+    }
+  }
+
+  void _startListeningToRiderLocation() {
+    final riderId = widget.order['riderId'];
+    if (riderId == null) return;
+
+    _locationSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(riderId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && mounted) {
+        var data = snapshot.data();
+        if (data != null && data['gps'] != null) {
+          setState(() {
+            _currentRiderLocation = LatLng(
+              data['gps']['latitude'],
+              data['gps']['longitude'],
+            );
+          });
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     var recipientLocationLat = widget.order['recipientLocation']['latitude'];
@@ -86,55 +130,92 @@ void _startListeningToRiderLocation() {
         title: const Text('Order Details'),
         backgroundColor: const Color(0xFF890E1C),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(_isFollowingRider ? Icons.gps_fixed : Icons.gps_not_fixed),
+            onPressed: () {
+              setState(() {
+                _isFollowingRider = !_isFollowingRider;
+                if (_isFollowingRider && _currentRiderLocation != null) {
+                  _mapController.move(_currentRiderLocation!, _mapController.camera.zoom);
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (recipientLocationLat != null && recipientLocationLng != null)
-              SizedBox(
-                height: 300,
-                child: FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: LatLng(recipientLocationLat, recipientLocationLng),
-                    initialZoom: 15.0,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c'],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        if (widget.currentLocation != null)
-                          Marker(
-                            point: widget.currentLocation!,
-                            child: const Icon(
-                              Icons.bike_scooter,
-                              color: Color.fromARGB(255, 255, 153, 0),
-                              size: 40,
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _currentRiderLocation ?? 
+                            LatLng(recipientLocationLat, recipientLocationLng),
+                        initialZoom: 15.0,
+                        onMapEvent: (event) {
+                          // Disable following when user manually moves the map
+                          if (event.source != MapEventSource.mapController) {
+                            setState(() => _isFollowingRider = false);
+                          }
+                        },
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            if (_currentRiderLocation != null)
+                              Marker(
+                                point: _currentRiderLocation!,
+                                child: const Icon(
+                                  Icons.bike_scooter,
+                                  color: Color.fromARGB(255, 255, 153, 0),
+                                  size: 40,
+                                ),
+                              ),
+                            Marker(
+                              point: LatLng(recipientLocationLat, recipientLocationLng),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                                size: 40,
+                              ),
                             ),
-                          ),
-                        Marker(
-                          point: LatLng(recipientLocationLat, recipientLocationLng),
-                          child: const Icon(
-                            Icons.location_on,
-                            color: Colors.red,
-                            size: 40,
-                          ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  if (_currentRiderLocation != null)
+                    Positioned(
+                      bottom: 16,
+                      right: 16,
+                      child: FloatingActionButton(
+                        mini: true,
+                        backgroundColor: Colors.white,
+                        child: const Icon(Icons.center_focus_strong, color: Colors.black87),
+                        onPressed: () {
+                          setState(() => _isFollowingRider = true);
+                          _mapController.move(_currentRiderLocation!, 15.0);
+                        },
+                      ),
+                    ),
+                ],
               ),
             _buildSection(
               'Product Information',
               [
-                _buildInfoRow('Name', widget.productData['name']?.toString() ?? 'N/A'),
+                _buildInfoRow('Name', widget.productData['productName']?.toString() ?? 'N/A'),
                 _buildInfoRow('Price', '${widget.productData['price']?.toString() ?? '50'} ฿'),
-                _buildInfoRow('Description', widget.productData['description']?.toString() ?? 'N/A'),
               ],
             ),
             _buildSection(
@@ -143,10 +224,8 @@ void _startListeningToRiderLocation() {
                 _buildInfoRow('Sender', widget.order['senderName']?.toString() ?? 'N/A'),
                 _buildInfoRow('Recipient', widget.order['recipientName']?.toString() ?? 'N/A'),
                 _buildInfoRow('Phone', widget.order['recipientPhone']?.toString() ?? 'N/A'),
-                _buildInfoRow('Address', widget.order['recipientLocation']?['address']?.toString() ?? 'N/A'),
-                // _buildInfoRow('Created At', _formatTimestamp(widget.order['createdAt'])),
+                _buildInfoRow('Address', widget.order['address']?['address']?.toString() ?? 'N/A'),
                 _buildInfoRow('Status', widget.order['status']?.toString() ?? 'N/A'),
-                // _buildInfoRow('Updated At', _formatTimestamp(widget.order['updatedAt'])),
               ],
             ),
           ],
