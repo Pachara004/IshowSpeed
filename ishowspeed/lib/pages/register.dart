@@ -24,7 +24,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _vehicleController = TextEditingController();
   final TextEditingController _gpsController = TextEditingController();
@@ -45,7 +46,8 @@ class _RegisterPageState extends State<RegisterPage> {
     _gpsController.dispose();
     super.dispose();
   }
-Future<void> _pickImage() async {
+
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
 
     // Try to pick an image from the gallery
@@ -63,163 +65,211 @@ Future<void> _pickImage() async {
     }
   }
 
-Future<String?> _uploadProfileImage(String uid) async {
-  if (_profileImage == null) return null; // ตรวจสอบว่าเลือกภาพแล้ว
+  Future<String?> _uploadProfileImage(String uid) async {
+    if (_profileImage == null) return null; // ตรวจสอบว่าเลือกภาพแล้ว
 
-  try {
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('profile_images')
-        .child(uid) // สร้างโฟลเดอร์โดยใช้ uid
-        .child('profile.jpg'); // ตั้งชื่อไฟล์เป็น profile.jpg
-    await ref.putFile(_profileImage!);
-    final downloadUrl = await ref.getDownloadURL();
-    return downloadUrl;
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to upload profile image: $e')),
-    );
-    return null;
-  }
-}
-
-Future<bool> _isPhoneNumberDuplicate(String phone) async {
-  try {
-    final querySnapshot = await _firestore
-        .collection('users')
-        .where('phone', isEqualTo: phone)
-        .get();
-    
-    return querySnapshot.docs.isNotEmpty;
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error checking phone number: $e')),
-    );
-    return false;
-  }
-}
-// ฟังก์ชันเช็คอีเมลซ้ำ
-Future<bool> _isEmailDuplicate(String email) async {
-  final QuerySnapshot result = await FirebaseFirestore.instance
-      .collection('users')
-      .where('email', isEqualTo: email)
-      .get();
-  return result.docs.isNotEmpty;
-}
-
-Future<void> _register() async {
-
-  // ตรวจสอบว่ากรอกข้อมูลครบทุกช่อง
-  if (_usernameController.text.isEmpty ||
-      _phoneController.text.isEmpty ||
-      _emailController.text.isEmpty ||
-      _passwordController.text.isEmpty ||
-      _confirmPasswordController.text.isEmpty ||
-      (_userType == 'Rider' && _vehicleController.text.isEmpty)) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please fill in all fields')),
-    );
-    return;
-  }
-   // ตรวจสอบว่าผู้ใช้ได้เลือกรูปภาพหรือยัง
-  if (_profileImage == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select a profile image')),
-    );
-    return;
-  }
-
-  // ตรวจสอบว่ากรอกที่อยู่หรือเลือกพิกัดแล้วหรือยัง
-  if (_userType == 'User' &&_addressController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please provide your address or select a location')),
-    );
-    return;
-  }
-// ตรวจสอบว่ากรอกทะเบียนรถเฉพาะเมื่อเป็น Rider
-if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Please add your vehicle registration number')),
-  );
-  return;
-}
-
-// ตรวจสอบความยาวของเบอร์โทร
-  if (_phoneController.text.length != 10) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Phone number must be 10 digits')),
-    );
-    return;
-  }
-  // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
-  bool isDuplicate = await _isPhoneNumberDuplicate(_phoneController.text);
-  if (isDuplicate) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Phone number already registered')),
-    );
-    return;
-  }
-   // ตรวจสอบว่าอีเมลซ้ำหรือไม่
-  bool isDuplicateEmail = await _isEmailDuplicate(_emailController.text);
-  if (isDuplicateEmail) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Email already registered')),
-    );
-    return;
-  }
-
-  if (_passwordController.text == _confirmPasswordController.text) {
     try {
-      // สร้างผู้ใช้ใหม่ด้วย Firebase Authentication
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-
-      // รับ uid ของผู้ใช้ที่ถูกสร้าง
-      String uid = userCredential.user!.uid;
-
-      // Upload profile image
-      String? profileImageUrl = await _uploadProfileImage(uid) ?? '';
-
-      // สร้างเอกสารใหม่ใน Firestore พร้อมข้อมูลผู้ใช้
-      await _firestore.collection('users').doc(uid).set({
-        'profileImage': profileImageUrl,
-        'username': _usernameController.text,
-        'phone': _phoneController.text,
-        'email': _emailController.text,
-        'password': _passwordController.text,
-        'gps': {
-          'latitude': _gpsController.text.split(',')[0],
-          'longitude': _gpsController.text.split(',')[1],
-      },
-        'address': _addressController.text,
-        'vehicle': _userType == 'Rider' ? _vehicleController.text : '',
-        'userType': _userType,
-      });
-
-      // แสดงข้อความสำเร็จ
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration Successful')),
-      );
-
-      // นำทางกลับไปยังหน้าล็อกอินหรือหน้าที่ต้องการ
-      Navigator.pop(context);
-
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child(uid) // สร้างโฟลเดอร์โดยใช้ uid
+          .child('profile.jpg'); // ตั้งชื่อไฟล์เป็น profile.jpg
+      await ref.putFile(_profileImage!);
+      final downloadUrl = await ref.getDownloadURL();
+      return downloadUrl;
     } catch (e) {
-      // จัดการกรณีที่การเขียน Firestore ล้มเหลว
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registration Failed: $e')),
+        SnackBar(content: Text('Failed to upload profile image: $e')),
+      );
+      return null;
+    }
+  }
+
+  Future<bool> _isPhoneNumberDuplicate(String phone) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('phone', isEqualTo: phone)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error checking phone number: $e')),
+      );
+      return false;
+    }
+  }
+
+// ฟังก์ชันเช็คอีเมลซ้ำ
+  Future<bool> _isEmailDuplicate(String email) async {
+    final QuerySnapshot result = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .get();
+    return result.docs.isNotEmpty;
+  }
+
+  Future<void> _register() async {
+    // ตรวจสอบว่ากรอกข้อมูลครบทุกช่อง
+    if (_usernameController.text.isEmpty ||
+        _phoneController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
+        (_userType == 'Rider' && _vehicleController.text.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    // ตรวจสอบว่าผู้ใช้ได้เลือกรูปภาพหรือยัง
+    if (_profileImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a profile image')),
+      );
+      return;
+    }
+
+    // ตรวจสอบว่ากรอกที่อยู่หรือเลือกพิกัดแล้วหรือยัง
+    if (_userType == 'User' && _addressController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please provide your address or select a location')),
+      );
+      return;
+    }
+
+    // ตรวจสอบว่ากรอกทะเบียนรถเฉพาะเมื่อเป็น Rider
+    if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please add your vehicle registration number')),
+      );
+      return;
+    }
+
+    // ตรวจสอบความยาวของเบอร์โทร
+    if (_phoneController.text.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number must be 10 digits')),
+      );
+      return;
+    }
+
+    // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
+    bool isDuplicate = await _isPhoneNumberDuplicate(_phoneController.text);
+    if (isDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number already registered')),
+      );
+      return;
+    }
+
+    // ตรวจสอบว่าอีเมลซ้ำหรือไม่
+    bool isDuplicateEmail = await _isEmailDuplicate(_emailController.text);
+    if (isDuplicateEmail) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email already registered')),
+      );
+      return;
+    }
+
+    // ตรวจสอบความถูกต้องของพิกัด GPS
+    String latitude = '';
+    String longitude = '';
+
+    if (_userType == 'Rider') {
+      // หากเป็น Rider ให้ใช้พิกัดปัจจุบัน
+      try {
+        LatLng _currentLocation = await GeolocatorServices.getCurrentLocation();
+        latitude = _currentLocation.latitude.toString();
+        longitude = _currentLocation.longitude.toString();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to get current location: $e')),
+        );
+        return;
+      }
+    } else {
+      // สำหรับผู้ใช้ประเภทอื่น ตรวจสอบว่ากรอกพิกัด GPS ถูกต้องหรือไม่
+      if (_gpsController.text.isNotEmpty && _gpsController.text.contains(',')) {
+        final gpsParts = _gpsController.text.split(',');
+
+        // ตรวจสอบว่ามีทั้ง latitude และ longitude
+        if (gpsParts.length == 2) {
+          latitude = gpsParts[0].trim();
+          longitude = gpsParts[1].trim();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Invalid GPS format. Please provide both latitude and longitude.')),
+          );
+          return;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please provide valid GPS coordinates.')),
+        );
+        return;
+      }
+    }
+
+    // ตรวจสอบว่ารหัสผ่านตรงกันหรือไม่
+    if (_passwordController.text == _confirmPasswordController.text) {
+      try {
+        // สร้างผู้ใช้ใหม่ด้วย Firebase Authentication
+        UserCredential userCredential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+
+        // รับ uid ของผู้ใช้ที่ถูกสร้าง
+        String uid = userCredential.user!.uid;
+
+        // Upload profile image
+        String? profileImageUrl = await _uploadProfileImage(uid) ?? '';
+
+        // สร้างเอกสารใหม่ใน Firestore พร้อมข้อมูลผู้ใช้
+        await _firestore.collection('users').doc(uid).set({
+          'profileImage': profileImageUrl,
+          'username': _usernameController.text,
+          'phone': _phoneController.text,
+          'email': _emailController.text,
+          'password': _passwordController.text,
+          'gps': {
+            'latitude': latitude,
+            'longitude': longitude,
+          },
+          'address': _addressController.text,
+          'vehicle': _userType == 'Rider' ? _vehicleController.text : '',
+          'userType': _userType,
+        });
+
+        // แสดงข้อความสำเร็จ
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration Successful')),
+        );
+
+        // นำทางกลับไปยังหน้าล็อกอินหรือหน้าที่ต้องการ
+        Navigator.pop(context);
+      } catch (e) {
+        // จัดการกรณีที่การเขียน Firestore ล้มเหลว
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration Failed: $e')),
+        );
+      }
+    } else {
+      // รหัสผ่านไม่ตรงกัน
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
       );
     }
-  } else {
-    // รหัสผ่านไม่ตรงกัน
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Passwords do not match')),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -276,35 +326,41 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
                 child: CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey[300],
-                  backgroundImage: _profileImage != null
-                      ? FileImage(_profileImage!)
-                      : null,
+                  backgroundImage:
+                      _profileImage != null ? FileImage(_profileImage!) : null,
                   child: _profileImage == null
-                      ? const Icon(Icons.camera_alt, size: 50, color: Colors.white)
+                      ? const Icon(Icons.camera_alt,
+                          size: 50, color: Colors.white)
                       : null,
                 ),
               ),
               const SizedBox(height: 20),
               Expanded(
                 child: TabBarView(
-                  
                   children: [
                     // User Tab
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: ListView(
                         children: [
-                          _buildTextField('Username', _usernameController, Icons.account_circle),
+                          _buildTextField('Username', _usernameController,
+                              Icons.account_circle),
                           const SizedBox(height: 16),
-                          _buildTextField('Phone', _phoneController, Icons.phone, inputType: TextInputType.phone),
+                          _buildTextField(
+                              'Phone', _phoneController, Icons.phone,
+                              inputType: TextInputType.phone),
                           const SizedBox(height: 16),
-                          _buildTextField('Email', _emailController, Icons.email, inputType: TextInputType.emailAddress),
+                          _buildTextField(
+                              'Email', _emailController, Icons.email,
+                              inputType: TextInputType.emailAddress),
                           const SizedBox(height: 16),
                           _buildPasswordField('Password', _passwordController),
                           const SizedBox(height: 16),
-                          _buildPasswordField('Confirm Password', _confirmPasswordController, _passwordController),
+                          _buildPasswordField('Confirm Password',
+                              _confirmPasswordController, _passwordController),
                           const SizedBox(height: 16),
-                          _buildTextField('Address', _addressController, Icons.location_on),
+                          _buildTextField(
+                              'Address', _addressController, Icons.location_on),
                           const SizedBox(height: 16),
                           _buildLocationPicker(),
                         ],
@@ -315,17 +371,24 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
                       padding: const EdgeInsets.all(16.0),
                       child: ListView(
                         children: [
-                          _buildTextField('Username', _usernameController, Icons.account_circle),
+                          _buildTextField('Username', _usernameController,
+                              Icons.account_circle),
                           const SizedBox(height: 16),
-                          _buildTextField('Phone', _phoneController, Icons.phone, inputType: TextInputType.phone),
+                          _buildTextField(
+                              'Phone', _phoneController, Icons.phone,
+                              inputType: TextInputType.phone),
                           const SizedBox(height: 16),
-                          _buildTextField('Email', _emailController, Icons.email, inputType: TextInputType.emailAddress),
+                          _buildTextField(
+                              'Email', _emailController, Icons.email,
+                              inputType: TextInputType.emailAddress),
                           const SizedBox(height: 16),
                           _buildPasswordField('Password', _passwordController),
                           const SizedBox(height: 16),
-                          _buildPasswordField('Confirm Password', _confirmPasswordController, _passwordController),
+                          _buildPasswordField('Confirm Password',
+                              _confirmPasswordController, _passwordController),
                           const SizedBox(height: 16),
-                          _buildTextField('Vehicle Registration Number', _vehicleController, Icons.directions_car),
+                          _buildTextField('Vehicle Registration Number',
+                              _vehicleController, Icons.directions_car),
                         ],
                       ),
                     ),
@@ -361,8 +424,10 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
     );
   }
 
- // Text field with label and icon
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType inputType = TextInputType.text}) {
+  // Text field with label and icon
+  Widget _buildTextField(
+      String label, TextEditingController controller, IconData icon,
+      {TextInputType inputType = TextInputType.text}) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
@@ -413,10 +478,10 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
     );
   }
 
-
   // Password field with validation for matching
-  Widget _buildPasswordField(String label, TextEditingController controller, [TextEditingController? matchingController]) {
-    bool _isObscured = true; 
+  Widget _buildPasswordField(String label, TextEditingController controller,
+      [TextEditingController? matchingController]) {
+    bool _isObscured = true;
     return TextFormField(
       controller: controller,
       obscureText: _isObscured, // ใช้สถานะเพื่อควบคุมการปกปิดรหัสผ่าน
@@ -435,7 +500,9 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
         ),
         suffixIcon: IconButton(
           icon: Icon(
-            _isObscured ? Icons.visibility : Icons.visibility_off, // เปลี่ยนไอคอนตามสถานะ
+            _isObscured
+                ? Icons.visibility
+                : Icons.visibility_off, // เปลี่ยนไอคอนตามสถานะ
             color: Colors.blueAccent,
           ),
           onPressed: () {
@@ -468,190 +535,200 @@ if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
       validator: (value) {
         if (value!.isEmpty) {
           return 'Please enter your password';
-        } else if (matchingController != null && value != matchingController.text) {
+        } else if (matchingController != null &&
+            value != matchingController.text) {
           return 'Passwords do not match';
         }
         return null;
       },
     );
   }
-Widget _buildLocationPicker() {
-  return InkWell(
-    onTap: () async {
-      final selectedLocation = await _showMapDialog(context);
-      if (selectedLocation != null) {
-        setState(() {
-          _gpsController.text = '${selectedLocation.latitude}, ${selectedLocation.longitude}';
-        });
-      }
-    },
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: Colors.blueAccent, width: 2),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _gpsController.text.isEmpty ? 'Select Location' : 'Selected:',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (_gpsController.text.isNotEmpty)
+
+  Widget _buildLocationPicker() {
+    return InkWell(
+      onTap: () async {
+        final selectedLocation = await _showMapDialog(context);
+        if (selectedLocation != null) {
+          setState(() {
+            _gpsController.text =
+                '${selectedLocation.latitude}, ${selectedLocation.longitude}';
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: Colors.blueAccent, width: 2),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    _gpsController.text,
+                    _gpsController.text.isEmpty
+                        ? 'Select Location'
+                        : 'Selected:',
                     style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.black54,
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
+                  if (_gpsController.text.isNotEmpty)
+                    Text(
+                      _gpsController.text,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.location_on,
+              color: Colors.blueAccent,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<LatLng?> _showMapDialog(BuildContext context) async {
+    ValueNotifier<LatLng?> selectedLocationNotifier =
+        ValueNotifier<LatLng?>(null);
+    ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
+    ValueNotifier<LocationData?> currentLocationNotifier =
+        ValueNotifier<LocationData?>(null);
+
+    LatLng _currentLocation =
+        await GeolocatorServices.getCurrentLocation(); // เก็บตำแหน่งปัจจุบัน
+
+    return showDialog<LatLng>(
+      context: context,
+      barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Selected Your Tee Yuu'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: Stack(
+              children: [
+                FutureBuilder<void>(
+                  future: Future.delayed(const Duration(
+                      milliseconds: 100)), // รอให้ dialog แสดงก่อน
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return ValueListenableBuilder<LatLng?>(
+                        valueListenable: selectedLocationNotifier,
+                        builder: (context, selectedLocation, _) {
+                          return FlutterMap(
+                            options: MapOptions(
+                              initialCenter: _currentLocation,
+                              initialZoom: 15.0,
+                              minZoom: 5.0,
+                              maxZoom: 18.0,
+                              onTap: (_, point) {
+                                selectedLocationNotifier.value = point;
+                              },
+                              onMapReady: () {
+                                isMapLoaded.value = true;
+                              },
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                subdomains: const ['a', 'b', 'c'],
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  if (selectedLocation != null)
+                                    Marker(
+                                      point: selectedLocation,
+                                      child: const Icon(
+                                        Icons.place,
+                                        color: Colors.blue,
+                                        size: 40,
+                                      ),
+                                    ),
+                                  if (selectedLocation == null)
+                                    Marker(
+                                      point: _currentLocation,
+                                      child: const Icon(
+                                        Icons.location_on,
+                                        color: Colors.red,
+                                        size: 40,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    }
+                    return Container(
+                      color: Colors.white,
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'กำลังโหลดแผนที่...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(
-            Icons.location_on,
-            color: Colors.blueAccent,
-            size: 24,
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-Future<LatLng?> _showMapDialog(BuildContext context) async {
-  ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
-  ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
-  ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
-
-  LatLng _currentLocation = await GeolocatorServices.getCurrentLocation(); // เก็บตำแหน่งปัจจุบัน
-
-  return showDialog<LatLng>(
-    context: context,
-    barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Selected Your Tee Yuu'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: Stack(
-            children: [
-              FutureBuilder<void>(
-                future: Future.delayed(const Duration(milliseconds: 100)), // รอให้ dialog แสดงก่อน
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return ValueListenableBuilder<LatLng?>(
-                      valueListenable: selectedLocationNotifier,
-                      builder: (context, selectedLocation, _) {
-                        return FlutterMap(
-                          options: MapOptions(
-                            initialCenter: _currentLocation,
-                            initialZoom: 15.0,
-                            minZoom: 5.0,
-                            maxZoom: 18.0,
-                            onTap: (_, point) {
-                              selectedLocationNotifier.value = point;
-                            },
-                            onMapReady: () {
-                              isMapLoaded.value = true;
-                            },
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              subdomains: const ['a', 'b', 'c'],
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                if (selectedLocation != null)
-                                  Marker(
-                                    point: selectedLocation,
-                                    child: const Icon(
-                                      Icons.place,
-                                      color: Colors.blue,
-                                      size: 40,
-                                    ),
-                                  ),
-                                if (selectedLocation == null)
-                                  Marker(
-                                    point: _currentLocation,
-                                    child: const Icon(
-                                      Icons.location_on,
-                                      color: Colors.red,
-                                      size: 40,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  }
-                  return Container(
-                    color: Colors.white,
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'กำลังโหลดแผนที่...',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ยกเลิก'),
-          ),
-          ValueListenableBuilder<bool>(
-            valueListenable: isMapLoaded,
-            builder: (context, loaded, _) {
-              return TextButton(
-                onPressed: loaded ? () {
-                  final location = selectedLocationNotifier.value;
-                  if (location != null) {
-                    Navigator.of(context).pop(
-                      location
-                    );
-                  } else {
-                    Navigator.of(context).pop();
-                  }
-                } : null,
-                child: const Text('เลือก'),
-              );
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('ยกเลิก'),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: isMapLoaded,
+              builder: (context, loaded, _) {
+                return TextButton(
+                  onPressed: loaded
+                      ? () {
+                          final location = selectedLocationNotifier.value;
+                          if (location != null) {
+                            Navigator.of(context).pop(location);
+                          } else {
+                            Navigator.of(context).pop();
+                          }
+                        }
+                      : null,
+                  child: const Text('เลือก'),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
