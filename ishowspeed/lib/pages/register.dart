@@ -59,9 +59,7 @@ class _RegisterPageState extends State<RegisterPage> {
         _profileImage = File(pickedFile.path);
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No image selected.')),
-      );
+      _showCustomSnackBar('No image selected.', backgroundColor: Colors.red);
     }
   }
 
@@ -78,9 +76,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final downloadUrl = await ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload profile image: $e')),
-      );
+      _showCustomSnackBar('Failed to upload profile image: $e', backgroundColor: Colors.red);
       return null;
     }
   }
@@ -94,9 +90,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error checking phone number: $e')),
-      );
+      _showCustomSnackBar('Error checking phone number: $e', backgroundColor: Colors.red);
       return false;
     }
   }
@@ -118,61 +112,46 @@ class _RegisterPageState extends State<RegisterPage> {
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty ||
         (_userType == 'Rider' && _vehicleController.text.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+      _showCustomSnackBar('Please fill in all fields', backgroundColor: Colors.red);    
+
       return;
     }
 
     // ตรวจสอบว่าผู้ใช้ได้เลือกรูปภาพหรือยัง
     if (_profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a profile image')),
-      );
+      _showCustomSnackBar('Please select a profile image', backgroundColor: Colors.red);  
       return;
     }
 
     // ตรวจสอบว่ากรอกที่อยู่หรือเลือกพิกัดแล้วหรือยัง
     if (_userType == 'User' && _addressController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please provide your address or select a location')),
-      );
+      _showCustomSnackBar('Please provide your address or select a location', backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่ากรอกทะเบียนรถเฉพาะเมื่อเป็น Rider
     if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please add your vehicle registration number')),
-      );
+      _showCustomSnackBar('Please add your vehicle registration number', backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบความยาวของเบอร์โทร
     if (_phoneController.text.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone number must be 10 digits')),
-      );
+      _showCustomSnackBar('Phone number must be 10 digits', backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
     bool isDuplicate = await _isPhoneNumberDuplicate(_phoneController.text);
     if (isDuplicate) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone number already registered')),
-      );
+      _showCustomSnackBar('Phone number already registered', backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่าอีเมลซ้ำหรือไม่
     bool isDuplicateEmail = await _isEmailDuplicate(_emailController.text);
     if (isDuplicateEmail) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email already registered')),
-      );
+      _showCustomSnackBar('Email already registered', backgroundColor: Colors.red);
       return;
     }
 
@@ -180,16 +159,14 @@ class _RegisterPageState extends State<RegisterPage> {
     String latitude = '';
     String longitude = '';
 
-    if (_userType == 'Rider') {
+    if (_userType == 'Rider' || _userType == 'User') {
       // หากเป็น Rider ให้ใช้พิกัดปัจจุบัน
       try {
         LatLng _currentLocation = await GeolocatorServices.getCurrentLocation();
         latitude = _currentLocation.latitude.toString();
         longitude = _currentLocation.longitude.toString();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to get current location: $e')),
-        );
+        _showCustomSnackBar('Failed to get current location: $e', backgroundColor: Colors.red);
         return;
       }
     } else {
@@ -202,18 +179,11 @@ class _RegisterPageState extends State<RegisterPage> {
           latitude = gpsParts[0].trim();
           longitude = gpsParts[1].trim();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Invalid GPS format. Please provide both latitude and longitude.')),
-          );
+          _showCustomSnackBar('Invalid GPS format. Please provide both latitude and longitude.', backgroundColor: Colors.red);
           return;
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please provide valid GPS coordinates.')),
-        );
+        _showCustomSnackBar('Please provide valid GPS coordinates.', backgroundColor: Colors.red);
         return;
       }
     }
@@ -251,26 +221,31 @@ class _RegisterPageState extends State<RegisterPage> {
         });
 
         // แสดงข้อความสำเร็จ
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration Successful')),
-        );
+        _showCustomSnackBar('Registration Successful', backgroundColor: const Color.fromARGB(255, 3, 180, 17));
 
         // นำทางกลับไปยังหน้าล็อกอินหรือหน้าที่ต้องการ
         Navigator.pop(context);
       } catch (e) {
-        // จัดการกรณีที่การเขียน Firestore ล้มเหลว
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration Failed: $e')),
-        );
+        _showCustomSnackBar('Registration Failed: $e', backgroundColor: const Color.fromARGB(255, 255, 0, 0));
       }
     } else {
       // รหัสผ่านไม่ตรงกัน
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      _showCustomSnackBar('Passwords do not match', backgroundColor: const Color.fromARGB(255, 255, 0, 0));
     }
   }
-
+  void _showCustomSnackBar(String message, {Color? backgroundColor, Color? textColor}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        style: TextStyle(color: textColor ?? Colors.white), // กำหนดสีข้อความ
+      ),
+      backgroundColor: backgroundColor ?? Colors.blue, // กำหนดสีพื้นหลัง
+      duration: const Duration(seconds: 3), // ระยะเวลาแสดง
+      behavior: SnackBarBehavior.floating, // พฤติกรรมการแสดง
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
