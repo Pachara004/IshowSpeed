@@ -13,22 +13,47 @@ class UserHistoryPage extends StatefulWidget {
 class _UserHistoryPageState extends State<UserHistoryPage>
     with SingleTickerProviderStateMixin {
   User? _currentUser;
+  int _selectedIndex = 0;
   late TabController _tabController;
+  String? _phoneNumber;
+  String? _username;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     
-    // Get current user immediately
-    _currentUser = FirebaseAuth.instance.currentUser;
-    log('Initial user: ${_currentUser?.uid} - ${_currentUser?.phoneNumber}');
-    
-    // Listen for auth changes
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      setState(() {
-        _currentUser = user;
-      });
+    log("message");
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (user != null) {
+        log(user.toString());
+        setState(() {
+          _currentUser = user;
+        });
+
+        // Log ข้อมูลผู้ใช้
+        log("User ID: ${_currentUser!.uid}");
+        log("Email: ${_currentUser!.email}");
+        log("Phone: ${_currentUser!.phoneNumber}");
+
+        // ดึงข้อมูลผู้ใช้จาก Firestore
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        setState(() {
+          _username = userDoc.data()?['username'] ??
+              'Guest'; // ถ้าไม่มี username จะแสดง Guest
+          _phoneNumber = userDoc.data()?['phone'];
+        });
+
+        // Log ข้อมูลโปรไฟล์ (หากมี)
+        log(_phoneNumber.toString());
+        log("Username: $_username");
+        log("Phone: ${_currentUser!.phoneNumber}");
+      }
     });
   }
 
@@ -78,84 +103,162 @@ class _UserHistoryPageState extends State<UserHistoryPage>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildProductList('Products you sent', "userId"),
-            _buildProductList('Products you received', "recipientPhone"),
+           _buildSenderTab(),
+          _buildReceiverTab(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProductList(String title, String filterField) {
-    log('Current user ID: ${_currentUser?.uid}'); // Debug print
-    // ดึง phone number จาก current user
-    String? userIdentifier = filterField == "recipientPhone" 
-        ? _currentUser?.phoneNumber  // ใช้ phone number สำหรับ recipient
-        : _currentUser?.uid;         // ใช้ uid สำหรับ sender
+ Widget _buildSenderTab() {
+    log(_phoneNumber.toString());
     return Container(
       color: const Color(0xFFFFC809),
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('Product')
-            .where(filterField, isEqualTo: userIdentifier)
-            .where("status", whereNotIn: ["waiting"])
-            .snapshots(),
-        builder: (context, snapshot) {
-          log('Snapshot Connection State: ${snapshot.connectionState}');
-          log('Snapshot data: ${snapshot.data?.docs.length}'); // Debug print
-          
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            log('No documents found for recipientPhone: ${_currentUser!.uid}');
-            return Center(
-                child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text('No $title available.'),
-                ),
-            );
-        }
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text(
+                      '',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('Product')
+                        .where("userId", isEqualTo: _currentUser?.uid)
+                        .where("status", isNotEqualTo: "waiting")
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-          // Convert docs to list and sort in memory if needed
-          final docs = snapshot.data!.docs.toList()
-            ..sort((a, b) {
-              final statusA = (a.data() as Map<String, dynamic>)['status'] as String;
-              final statusB = (b.data() as Map<String, dynamic>)['status'] as String;
-              return statusA.compareTo(statusB);
-            });
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(
+                            child: Text('No products available.'));
+                      }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              var doc = snapshot.data!.docs[index];
-              var data = doc.data() as Map<String, dynamic>;
-              return ProductItem(
-                name: data['productName'] ?? 'Unknown Product',
-                senderName: data['senderName'] ?? 'Unknown Sender',
-                recipientName: data['recipientName'] ?? 'Unknown Recipient',
-                imageUrl: data['imageUrl'] ?? '',
-                status: data['status'] ?? 'Unknown',
-                productId: doc.id,
-              );
-            },
-          );
-        },
+                      return Column(
+                        children: snapshot.data!.docs.map((doc) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          return ProductItem(
+                            context: context,
+                            sender:
+                                data['senderName'] ?? _username ?? 'Unknown',
+                            name: data['productName'] ?? 'Unknown',
+                            recipient: data['recipientName'] ?? 'Unknown',
+                            imageUrl: data['imageUrl'] ?? 'Unknown',
+                            details: data['productDetails'] ??
+                                'No details available.',
+                            recipientPhone: data['recipientPhone'],
+                            productId: data['productId'],
+                            status: data['status'],
+                            data: data,
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiverTab() {
+    return Container(
+      color: const Color(0xFFFFC809),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text(
+                      '',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('Product')
+                        .where("recipientPhone",
+                            isEqualTo:
+                                _phoneNumber) // ตรวจสอบว่า recipientPhone ตรงกับ _phoneNumber
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(
+                            child: Text('No products available.'));
+                      }
+
+                      return Column(
+                        children: snapshot.data!.docs.map((doc) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          log(data.toString());
+                          log(_phoneNumber.toString());
+                          return ProductItem(
+                            context: context,
+                            sender: data['senderName'] ?? 'Unknown',
+                            name: data['productName'] ?? 'Unknown',
+                            recipient: data['recipientName'] ?? 'Unknown',
+                            imageUrl: data['imageUrl'] ?? 'Unknown',
+                            details: data['productDetails'] ??
+                                'No details available.',
+                            recipientPhone: data['recipientPhone'],
+                            productId: data['productId'],
+                            status: data['status'],
+                            data: data,
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
 Widget ProductItem({
+  required BuildContext context, // รับ context
+  required String sender,
+  required String recipient,
   required String name,
-  required String senderName,
-  required String recipientName,
   required String imageUrl,
+  required String details,
+  required String recipientPhone,
   required String status,
-  required String productId,  // Add this parameter
+  required String productId,
+  required Map<String, dynamic> data,
 }) {
   return Container(
     margin: const EdgeInsets.symmetric(vertical: 8),
@@ -207,11 +310,11 @@ Widget ProductItem({
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Sender: $senderName',
+                      'Sender: $sender',
                       style: const TextStyle(color: Colors.white),
                     ),
                     Text(
-                      'Recipient: $recipientName',
+                      'Recipient: $recipient',
                       style: const TextStyle(color: Colors.white),
                     ),
                   ],
