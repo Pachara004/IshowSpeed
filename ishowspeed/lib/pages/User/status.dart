@@ -21,8 +21,9 @@ class ProductTrackingPage extends StatefulWidget {
 }
 
 class _ProductTrackingPageState extends State<ProductTrackingPage> {
-   int currentStepIndex = 0;
-  LatLng riderLocation = LatLng(13.7563, 100.5018); // Default to a location int currentStepIndex = 0;
+  int currentStepIndex = 0;
+  LatLng riderLocation = LatLng(
+      13.7563, 100.5018); // Default to a location int currentStepIndex = 0;
   final List<String> shippingSteps = [
     'Order Placed',
     'In Progress',
@@ -60,7 +61,8 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     final index = shippingSteps.indexOf(status);
     return index >= 0 ? index : 0;
   }
-@override
+
+  @override
   void initState() {
     super.initState();
 
@@ -74,6 +76,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     // Get the current step index from widget's current status
     currentStepIndex = getCurrentStepIndex(widget.currentStatus);
   }
+
   Widget buildInfoSection(String title, IconData icon, List<String> details) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +149,6 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
             style: const TextStyle(fontSize: 16),
           ),
           const Divider(height: 24),
-
           buildInfoSection(
             'Sender Information',
             Icons.person_outline,
@@ -156,9 +158,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
                 'Location: ${data['senderLocation'].toString()}',
             ],
           ),
-
           const SizedBox(height: 16),
-
           buildInfoSection(
             'Recipient Information',
             Icons.person_pin_circle_outlined,
@@ -169,9 +169,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
                 'Location: ${data['recipientLocation'].toString()}',
             ],
           ),
-
           const SizedBox(height: 16),
-
           buildInfoSection(
             'Delivery Timeline',
             Icons.access_time,
@@ -366,7 +364,6 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
 
   @override
   Widget build(BuildContext context) {
-  
     return Scaffold(
       appBar: AppBar(
         title: const Text('Delivery Tracking'),
@@ -395,70 +392,85 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
             final GeoPoint location = data['riderLocation'];
             riderLocation = LatLng(location.latitude, location.longitude);
           }
-
-          return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(data['userId'])
-                .snapshots(),
-            builder: (context, riderSnapshot) {
-              Map<String, dynamic>? riderData;
-              if (riderSnapshot.hasData && riderSnapshot.data != null) {
-                riderData = riderSnapshot.data!.data() as Map<String, dynamic>?;
+          return FutureBuilder(
+            future: GeolocatorServices
+                .getCurrentLocation(), // Wait for rider location to load
+            builder: (context, AsyncSnapshot<LatLng> snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                // Show a loading spinner until location is fetched
+                return const Center(child: CircularProgressIndicator());
               }
 
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    if (riderData != null) buildRiderInfo(riderData),
-                    SizedBox(
-                      height: 300,
-                      child: FlutterMap(
-                        options: MapOptions(
-                          initialCenter: riderLocation,
-                          initialZoom: 15.0,
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            subdomains: const ['a', 'b', 'c'],
-                          ),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                point: riderLocation,
-                                width: 40,
-                                height: 40,
-                                child: const Icon(
-                                  Icons.motorcycle,
-                                  color: Color(0xFF890E1C),
-                                  size: 40,
-                                ),
+              if (snapshot.hasError || riderLocation == null) {
+                return const Center(
+                    child: Text('Error loading map or location not available'));
+              }
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(data['userId'])
+                    .snapshots(),
+                builder: (context, riderSnapshot) {
+                  Map<String, dynamic>? riderData;
+                  if (riderSnapshot.hasData && riderSnapshot.data != null) {
+                    riderData =
+                        riderSnapshot.data!.data() as Map<String, dynamic>?;
+                  }
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        if (riderData != null) buildRiderInfo(riderData),
+                        SizedBox(
+                          height: 300,
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: riderLocation,
+                              initialZoom: 15.0,
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                subdomains: const ['a', 'b', 'c'],
                               ),
-                              if (data['deliveryLocation'] != null)
-                                Marker(
-                                  point: LatLng(
-                                    data['deliveryLocation'].latitude,
-                                    data['deliveryLocation'].longitude,
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: riderLocation,
+                                    width: 40,
+                                    height: 40,
+                                    child: const Icon(
+                                      Icons.motorcycle,
+                                      color: Color(0xFF890E1C),
+                                      size: 40,
+                                    ),
                                   ),
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.location_on,
-                                    color: Color(0xFFFFC809),
-                                    size: 40,
-                                  ),
-                                ),
+                                  if (data['deliveryLocation'] != null)
+                                    Marker(
+                                      point: LatLng(
+                                        data['deliveryLocation'].latitude,
+                                        data['deliveryLocation'].longitude,
+                                      ),
+                                      width: 40,
+                                      height: 40,
+                                      child: const Icon(
+                                        Icons.location_on,
+                                        color: Color(0xFFFFC809),
+                                        size: 40,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                        buildStatusTracking(currentStepIndex),
+                        buildProductDetails(data),
+                      ],
                     ),
-                    buildStatusTracking(currentStepIndex),
-                    buildProductDetails(data),
-                  ],
-                ),
+                  );
+                },
               );
             },
           );
