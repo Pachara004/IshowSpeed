@@ -12,7 +12,8 @@ import 'package:location/location.dart';
 class AddProductDialog extends StatefulWidget {
   final String senderName;
 
-  const AddProductDialog({Key? key, required this.senderName}) : super(key: key);
+  const AddProductDialog({Key? key, required this.senderName})
+      : super(key: key);
 
   @override
   _AddProductDialogState createState() => _AddProductDialogState();
@@ -21,38 +22,45 @@ class AddProductDialog extends StatefulWidget {
 class _AddProductDialogState extends State<AddProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
-  
+
   String? _productName, _productDetails, _recipientName, _recipientPhone;
   String? _imageUrl;
   XFile? _imageFile;
   LatLng? _recipientLocation;
   LatLng? _senderLocation;
   List<Map<String, String>> _searchResults = [];
-  
-  final ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
+
+  final ValueNotifier<LatLng?> selectedLocationNotifier =
+      ValueNotifier<LatLng?>(null);
   final ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
-  final ValueNotifier<LocationData?> currentLocationNotifier = ValueNotifier<LocationData?>(null);
-  
-  final TextEditingController _recipientPhoneController = TextEditingController();
-  final TextEditingController _recipientNameController = TextEditingController();
-@override
+  final ValueNotifier<LocationData?> currentLocationNotifier =
+      ValueNotifier<LocationData?>(null);
+
+  final TextEditingController _recipientPhoneController =
+      TextEditingController();
+  final TextEditingController _recipientNameController =
+      TextEditingController();
+  @override
   void initState() {
     super.initState();
     _fetchAndSetSenderLocation();
   }
+
   Future<void> _showImageSourceDialog() {
     return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF890E1C),
-          title: const Text('เลือกรูปภาพ', style: TextStyle(color: Colors.white)),
+          title:
+              const Text('เลือกรูปภาพ', style: TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library, color: Colors.white),
-                title: const Text('เลือกจากแกลลอรี่', style: TextStyle(color: Colors.white)),
+                title: const Text('เลือกจากแกลลอรี่',
+                    style: TextStyle(color: Colors.white)),
                 onTap: () async {
                   Navigator.pop(context);
                   final XFile? image = await _picker.pickImage(
@@ -67,7 +75,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Colors.white),
-                title: const Text('ถ่ายรูป', style: TextStyle(color: Colors.white)),
+                title: const Text('ถ่ายรูป',
+                    style: TextStyle(color: Colors.white)),
                 onTap: () async {
                   Navigator.pop(context);
                   final XFile? image = await _picker.pickImage(
@@ -90,7 +99,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
   Future<void> _uploadImage() async {
     if (_imageFile != null) {
       try {
-        final storageRef = FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
+        final storageRef =
+            FirebaseStorage.instance.ref('product_images/${_imageFile!.name}');
         await storageRef.putFile(File(_imageFile!.path));
         _imageUrl = await storageRef.getDownloadURL();
         log('Image uploaded: $_imageUrl');
@@ -99,13 +109,17 @@ class _AddProductDialogState extends State<AddProductDialog> {
       }
     }
   }
-Future<void> _fetchAndSetSenderLocation() async {
+
+  Future<void> _fetchAndSetSenderLocation() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        DocumentSnapshot<Map<String, dynamic>> userDoc =
-            await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
         Map<String, dynamic>? gpsData = userDoc.data()?['gps']?['map'];
         if (gpsData != null) {
           setState(() {
@@ -130,6 +144,7 @@ Future<void> _fetchAndSetSenderLocation() async {
       log('Failed to fetch sender location: $e');
     }
   }
+
   Future<void> _fetchRecipientLocation(String phoneNumber) async {
     var querySnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -190,7 +205,8 @@ Future<void> _fetchAndSetSenderLocation() async {
                   backgroundColor: Colors.white,
                   radius: 30,
                   child: IconButton(
-                    icon: const Icon(Icons.add_a_photo, color: Color(0xFF890E1C), size: 30),
+                    icon: const Icon(Icons.add_a_photo,
+                        color: Color(0xFF890E1C), size: 30),
                     onPressed: _showImageSourceDialog,
                   ),
                 ),
@@ -251,8 +267,10 @@ Future<void> _fetchAndSetSenderLocation() async {
 
                 // Form Fields
                 const SizedBox(height: 16),
-                _buildTextField('Product Name', (value) => _productName = value),
-                _buildTextField('Product details', (value) => _productDetails = value),
+                _buildTextField(
+                    'Product Name', (value) => _productName = value),
+                _buildTextField(
+                    'Product details', (value) => _productDetails = value),
                 _buildRecipientSection(),
 
                 // Submit Button
@@ -278,7 +296,8 @@ Future<void> _fetchAndSetSenderLocation() async {
     return FutureBuilder<void>(
       future: _fetchCurrentLocation(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done && currentLocationNotifier.value != null) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            currentLocationNotifier.value != null) {
           LatLng currentLocation = LatLng(
             currentLocationNotifier.value!.latitude!,
             currentLocationNotifier.value!.longitude!,
@@ -300,7 +319,8 @@ Future<void> _fetchAndSetSenderLocation() async {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                     subdomains: const ['a', 'b', 'c'],
                   ),
                   MarkerLayer(
@@ -329,7 +349,8 @@ Future<void> _fetchAndSetSenderLocation() async {
       markers.add(
         Marker(
           point: _recipientLocation!,
-          child: const Icon(Icons.person_pin_circle, color: Colors.green, size: 40),
+          child: const Icon(Icons.person_pin_circle,
+              color: Colors.green, size: 40),
         ),
       );
     }
@@ -358,27 +379,30 @@ Future<void> _fetchAndSetSenderLocation() async {
                   filled: true,
                   fillColor: Colors.white,
                   labelText: 'Search Phone Number',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   prefixIcon: const Icon(Icons.phone),
                 ),
                 onChanged: _handlePhoneSearch,
-                validator: (value) => value!.isEmpty ? 'Phone number is required' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Phone number is required' : null,
                 onSaved: (value) => _recipientPhone = value,
               ),
-              if (_searchResults.isNotEmpty)
-                _buildSearchResults(),
+              if (_searchResults.isNotEmpty) _buildSearchResults(),
               const SizedBox(height: 8),
               TextFormField(
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
                   labelText: 'Recipient Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   prefixIcon: const Icon(Icons.person),
                 ),
                 enabled: false,
                 controller: TextEditingController(text: _recipientName),
-                validator: (value) => value!.isEmpty ? 'Recipient name is required' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Recipient name is required' : null,
               ),
             ],
           ),
@@ -449,8 +473,11 @@ Future<void> _fetchAndSetSenderLocation() async {
   Future<String?> _getCurrentUserPhone() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      DocumentSnapshot<Map<String, dynamic>> userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
       return userDoc.data()?['phone'];
     }
     return null;
@@ -466,46 +493,170 @@ Future<void> _fetchAndSetSenderLocation() async {
     }
   }
 
- Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit() async {
+    if (_imageFile == null) {
+      // Show error dialog if no image is selected
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF890E1C),
+            title: const Text(
+              'กรุณาเพิ่มรูปภาพ',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'คุณต้องเพิ่มรูปภาพสินค้าก่อนดำเนินการต่อ',
+              style: TextStyle(color: Colors.white),
+            ),
+            actions: [
+              TextButton(
+                child: const Text(
+                  'ตกลง',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          );
+        },
+      );
+      return; // Stop execution if no image
+    }
+
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      User? user = FirebaseAuth.instance.currentUser;
-      String? userId = user?.uid;
-      await _uploadImage();
-
-      final selectedLocation = selectedLocationNotifier.value ?? 
-          const LatLng(16.2469, 103.2496); // MSU default location
-
-      Map<String, dynamic> productData = {
-        'senderName': widget.senderName,
-        'productName': _productName,
-        'productDetails': _productDetails,
-        'recipientName': _recipientName,
-        'recipientPhone': _recipientPhone,
-        'imageUrl': _imageUrl,
-        'userId': userId,
-        'senderLocation': _senderLocation != null ? {
-          'latitude': _senderLocation!.latitude,
-          'longitude': _senderLocation!.longitude,
-          'formattedLocation': '${_senderLocation!.latitude.toStringAsFixed(4)}, ${_senderLocation!.longitude.toStringAsFixed(4)}'
-        } : null,
-        'recipientLocation': {
-          'latitude': selectedLocation.latitude,
-          'longitude': selectedLocation.longitude,
-          'formattedLocation': '${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}'
-        },
-        'status': 'waiting',
-      };
-
       try {
-        await FirebaseFirestore.instance
-            .collection('Product')
-            .add(productData);
-        print('Product added successfully!');
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Dialog(
+              backgroundColor: Colors.transparent,
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFFC809),
+                ),
+              ),
+            );
+          },
+        );
+
+        User? user = FirebaseAuth.instance.currentUser;
+        String? userId = user?.uid;
+        await _uploadImage();
+
+        if (_imageUrl == null) {
+          // Hide loading dialog
+          Navigator.of(context).pop();
+          // Show error if image upload failed
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFF890E1C),
+                title: const Text(
+                  'Something went wrong',
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: const Text(
+                  'Can not upload please try agian',
+                  style: TextStyle(color: Colors.white),
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              );
+            },
+          );
+          return; // Stop execution if image upload failed
+        }
+
+        final selectedLocation = selectedLocationNotifier.value ??
+            const LatLng(16.2469, 103.2496); // MSU default location
+
+        Map<String, dynamic> productData = {
+          'senderName': widget.senderName,
+          'productName': _productName,
+          'productDetails': _productDetails,
+          'recipientName': _recipientName,
+          'recipientPhone': _recipientPhone,
+          'imageUrl': _imageUrl,
+          'userId': userId,
+          'senderLocation': _senderLocation != null
+              ? {
+                  'latitude': _senderLocation!.latitude,
+                  'longitude': _senderLocation!.longitude,
+                  'formattedLocation':
+                      '${_senderLocation!.latitude.toStringAsFixed(4)}, ${_senderLocation!.longitude.toStringAsFixed(4)}'
+                }
+              : null,
+          'recipientLocation': {
+            'latitude': selectedLocation.latitude,
+            'longitude': selectedLocation.longitude,
+            'formattedLocation':
+                '${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}'
+          },
+          'status': 'waiting',
+          'timestamp': FieldValue.serverTimestamp(), // Add timestamp
+        };
+
+        await FirebaseFirestore.instance.collection('Product').add(productData);
+
+        // Hide loading dialog
         Navigator.of(context).pop();
+        // Hide add product dialog
+        Navigator.of(context).pop();
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add product success'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } catch (e) {
-        print('Failed to add product: $e');
+        // Hide loading dialog if showing
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // Show error dialog
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFF890E1C),
+                title: const Text(
+                  'something went wrong',
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: Text(
+                  'Can not add product: ${e.toString()}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              );
+            },
+          );
+        }
       }
     }
   }
@@ -516,7 +667,8 @@ class AddProductDialogHelper {
   static void show(BuildContext context, String senderName) {
     showDialog(
       context: context,
-      builder: (BuildContext context) => AddProductDialog(senderName: senderName),
+      builder: (BuildContext context) =>
+          AddProductDialog(senderName: senderName),
     );
   }
 }

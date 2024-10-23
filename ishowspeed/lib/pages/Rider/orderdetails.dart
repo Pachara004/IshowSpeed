@@ -58,7 +58,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       widget.order['senderLocation']['latitude'],
       widget.order['senderLocation']['longitude'],
     );
-
   }
 
   @override
@@ -246,10 +245,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         _photos.add(downloadUrl);
         _isUploading = false;
       });
-       // อัพเดทสถานะตามเงื่อนไขที่ถูกต้อง
+      // อัพเดทสถานะตามเงื่อนไขที่ถูกต้อง
       if (_currentStatus == 'accepted') {
         await _updateOrderStatus('in_progress');
-        _startDeliveringTimer();
+        // _startDeliveringTimer();
       } else if (_currentStatus == 'delivering') {
         await _completeDelivery();
       }
@@ -267,13 +266,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
   }
 
-  void _startDeliveringTimer() {
-    _deliveryingTimer = Timer(const Duration(seconds: 5), () {
-      if (_currentStatus == 'in_progress') {
-        _updateOrderStatus('delivering');
-      }
-    });
-  }
+  // void _startDeliveringTimer() {
+  //   _deliveryingTimer = Timer(const Duration(seconds: 5), () {
+  //     if (_currentStatus == 'in_progress') {
+  //       _updateOrderStatus('delivering');
+  //     }
+  //   });
+  // }
 
   // Add method to update order status
   Future<void> _updateOrderStatus(String newStatus) async {
@@ -369,141 +368,135 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     var recipientLocationLng = widget.order['recipientLocation']['longitude'];
 
     return Scaffold(
-        // onWillPop: () async => false,
+      // onWillPop: () async => false,
 
-          appBar: AppBar(
-            title: const Text('Order Details'),
-            backgroundColor: const Color(0xFF890E1C),
-            foregroundColor: Colors.white,
-            automaticallyImplyLeading: true, // Remove back button
-            leading:
-                Container(), // Empty container to prevent any leading widget
-            actions: [
-              IconButton(
-                icon: Icon(
-                    _isFollowingRider ? Icons.gps_fixed : Icons.gps_not_fixed),
-                onPressed: () {
-                  setState(() {
-                    _isFollowingRider = !_isFollowingRider;
-                    if (_isFollowingRider && _currentRiderLocation != null) {
-                      _mapController.move(
-                          _currentRiderLocation!, _mapController.camera.zoom);
-                    }
-                  });
-                },
-              ),
-            ],
+      appBar: AppBar(
+        title: const Text('Order Details'),
+        backgroundColor: const Color(0xFF890E1C),
+        foregroundColor: Colors.white,
+        automaticallyImplyLeading: true, // Remove back button
+        leading: Container(), // Empty container to prevent any leading widget
+        actions: [
+          IconButton(
+            icon:
+                Icon(_isFollowingRider ? Icons.gps_fixed : Icons.gps_not_fixed),
+            onPressed: () {
+              setState(() {
+                _isFollowingRider = !_isFollowingRider;
+                if (_isFollowingRider && _currentRiderLocation != null) {
+                  _mapController.move(
+                      _currentRiderLocation!, _mapController.camera.zoom);
+                }
+              });
+            },
           ),
-          body: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (recipientLocationLat != null &&
-                    recipientLocationLng != null)
-                  Stack(
-                    children: [
-                      SizedBox(
-                        height: 300,
-                        child: FlutterMap(
-                          mapController: _mapController,
-                          options: MapOptions(
-                            initialCenter: _currentRiderLocation ??
-                                LatLng(
-                                    recipientLocationLat, recipientLocationLng),
-                            initialZoom: 15.0,
-                            onMapEvent: (event) {
-                              // Disable following when user manually moves the map
-                              if (event.source !=
-                                  MapEventSource.mapController) {
-                                setState(() => _isFollowingRider = false);
-                              }
-                            },
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              subdomains: const ['a', 'b', 'c'],
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                if (_currentRiderLocation != null)
-                                  Marker(
-                                    point: _currentRiderLocation!,
-                                    child: const Icon(
-                                      Icons.bike_scooter,
-                                      color: Color.fromARGB(255, 255, 153, 0),
-                                      size: 40,
-                                    ),
-                                  ),
-                                Marker(
-                                  point: _targetLocation ??
-                                      const LatLng(0,
-                                          0), // ตรวจสอบว่าถ้าเป็น null จะใช้ค่าเริ่มต้น
-                                  child: Icon(
-                                    (_currentStatus ?? '') ==
-                                            'in_progress' // ตรวจสอบ null ของ _currentStatus
-                                        ? Icons
-                                            .location_on // Recipient location icon
-                                        : Icons.store, // Sender location icon
-                                    color: Colors.red,
-                                    size: 40,
-                                  ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (recipientLocationLat != null && recipientLocationLng != null)
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _currentRiderLocation ??
+                            LatLng(recipientLocationLat, recipientLocationLng),
+                        initialZoom: 15.0,
+                        onMapEvent: (event) {
+                          // Disable following when user manually moves the map
+                          if (event.source != MapEventSource.mapController) {
+                            setState(() => _isFollowingRider = false);
+                          }
+                        },
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            if (_currentRiderLocation != null)
+                              Marker(
+                                point: _currentRiderLocation!,
+                                child: const Icon(
+                                  Icons.bike_scooter,
+                                  color: Color.fromARGB(255, 255, 153, 0),
+                                  size: 40,
                                 ),
-                              ],
+                              ),
+                            Marker(
+                              point: _targetLocation ??
+                                  const LatLng(0,
+                                      0), // ตรวจสอบว่าถ้าเป็น null จะใช้ค่าเริ่มต้น
+                              child: Icon(
+                                (_currentStatus ?? '') ==
+                                        'in_progress' // ตรวจสอบ null ของ _currentStatus
+                                    ? Icons
+                                        .location_on // Recipient location icon
+                                    : Icons.store, // Sender location icon
+                                color: Colors.red,
+                                size: 40,
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      if (_currentRiderLocation != null)
-                        Positioned(
-                          bottom: 16,
-                          right: 16,
-                          child: FloatingActionButton(
-                            mini: true,
-                            backgroundColor: Colors.white,
-                            child: const Icon(Icons.center_focus_strong,
-                                color: Colors.black87),
-                            onPressed: () {
-                              setState(() => _isFollowingRider = true);
-                              _mapController.move(_currentRiderLocation!, 15.0);
-                            },
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                _buildSection(
-                  'Product Information',
-                  [
-                    _buildInfoRow('Name',
-                        widget.productData['productName']?.toString() ?? 'N/A'),
-                    _buildInfoRow('Price',
-                        '${widget.productData['price']?.toString() ?? '50'} ฿'),
-                  ],
-                ),
-                _buildSection(
-                  'Order Information',
-                  [
-                    _buildInfoRow('Sender',
-                        widget.order['senderName']?.toString() ?? 'N/A'),
-                    _buildInfoRow('Recipient',
-                        widget.order['recipientName']?.toString() ?? 'N/A'),
-                    _buildInfoRow('Phone',
-                        widget.order['recipientPhone']?.toString() ?? 'N/A'),
-                    _buildInfoRow(
-                        'Address',
-                        widget.order['address']?['address']?.toString() ??
-                            'N/A'),
-                    _buildInfoRow('Status', _currentStatus.toUpperCase()),
-                  ],
-                ),
-                _buildPhotoGallery(),
-                _buildPhotoButton(),
-                _buildStatusUpdateButton(),
+                  if (_currentRiderLocation != null)
+                    Positioned(
+                      bottom: 16,
+                      right: 16,
+                      child: FloatingActionButton(
+                        mini: true,
+                        backgroundColor: Colors.white,
+                        child: const Icon(Icons.center_focus_strong,
+                            color: Colors.black87),
+                        onPressed: () {
+                          setState(() => _isFollowingRider = true);
+                          _mapController.move(_currentRiderLocation!, 15.0);
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            _buildSection(
+              'Product Information',
+              [
+                _buildInfoRow('Name',
+                    widget.productData['productName']?.toString() ?? 'N/A'),
+                _buildInfoRow('Price',
+                    '${widget.productData['price']?.toString() ?? '50'} ฿'),
               ],
             ),
-          ),
-        );
+            _buildSection(
+              'Order Information',
+              [
+                _buildInfoRow(
+                    'Sender', widget.order['senderName']?.toString() ?? 'N/A'),
+                _buildInfoRow('Recipient',
+                    widget.order['recipientName']?.toString() ?? 'N/A'),
+                _buildInfoRow('Phone',
+                    widget.order['recipientPhone']?.toString() ?? 'N/A'),
+                _buildInfoRow('Address',
+                    widget.order['address']?['address']?.toString() ?? 'N/A'),
+                _buildInfoRow('Status', _currentStatus.toUpperCase()),
+              ],
+            ),
+            _buildPhotoGallery(),
+            _buildPhotoButton(),
+            _buildStatusUpdateButton(),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSection(String title, List<Widget> children) {
@@ -596,17 +589,19 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           () => _updateOrderStatus('in_progress'),
         );
       case 'in_progress':
-      bool hasEnoughPhotos = _photos.length == 2;
+        bool hasEnoughPhotos = _photos.length == 2;
         return _buildActionButton(
-        'Mark as Delivered',
-        Icons.check_circle,
-        hasEnoughPhotos ? _completeDelivery : () {
-          _showCustomSnackBar(
-            'Please take at least 2 photos before completing delivery',
-            backgroundColor: Colors.red,
-          );
-        },
-      );
+          'Mark as Delivered',
+          Icons.check_circle,
+          hasEnoughPhotos
+              ? _completeDelivery
+              : () {
+                  _showCustomSnackBar(
+                    'Please take at least 2 photos before completing delivery',
+                    backgroundColor: Colors.red,
+                  );
+                },
+        );
       case 'delivery_complete':
         return Container(
           padding: const EdgeInsets.all(16.0),

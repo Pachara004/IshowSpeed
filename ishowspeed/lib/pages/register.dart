@@ -76,7 +76,8 @@ class _RegisterPageState extends State<RegisterPage> {
       final downloadUrl = await ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      _showCustomSnackBar('Failed to upload profile image: $e', backgroundColor: Colors.red);
+      _showCustomSnackBar('Failed to upload profile image: $e',
+          backgroundColor: Colors.red);
       return null;
     }
   }
@@ -90,7 +91,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
-      _showCustomSnackBar('Error checking phone number: $e', backgroundColor: Colors.red);
+      _showCustomSnackBar('Error checking phone number: $e',
+          backgroundColor: Colors.red);
       return false;
     }
   }
@@ -112,46 +114,53 @@ class _RegisterPageState extends State<RegisterPage> {
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty ||
         (_userType == 'Rider' && _vehicleController.text.isEmpty)) {
-      _showCustomSnackBar('Please fill in all fields', backgroundColor: Colors.red);    
+      _showCustomSnackBar('Please fill in all fields',
+          backgroundColor: Colors.red);
 
       return;
     }
 
     // ตรวจสอบว่าผู้ใช้ได้เลือกรูปภาพหรือยัง
     if (_profileImage == null) {
-      _showCustomSnackBar('Please select a profile image', backgroundColor: Colors.red);  
+      _showCustomSnackBar('Please select a profile image',
+          backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่ากรอกที่อยู่หรือเลือกพิกัดแล้วหรือยัง
     if (_userType == 'User' && _addressController.text.isEmpty) {
-      _showCustomSnackBar('Please provide your address or select a location', backgroundColor: Colors.red);
+      _showCustomSnackBar('Please provide your address or select a location',
+          backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่ากรอกทะเบียนรถเฉพาะเมื่อเป็น Rider
     if (_userType == 'Rider' && _vehicleController.text.isEmpty) {
-      _showCustomSnackBar('Please add your vehicle registration number', backgroundColor: Colors.red);
+      _showCustomSnackBar('Please add your vehicle registration number',
+          backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบความยาวของเบอร์โทร
     if (_phoneController.text.length != 10) {
-      _showCustomSnackBar('Phone number must be 10 digits', backgroundColor: Colors.red);
+      _showCustomSnackBar('Phone number must be 10 digits',
+          backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
     bool isDuplicate = await _isPhoneNumberDuplicate(_phoneController.text);
     if (isDuplicate) {
-      _showCustomSnackBar('Phone number already registered', backgroundColor: Colors.red);
+      _showCustomSnackBar('Phone number already registered',
+          backgroundColor: Colors.red);
       return;
     }
 
     // ตรวจสอบว่าอีเมลซ้ำหรือไม่
     bool isDuplicateEmail = await _isEmailDuplicate(_emailController.text);
     if (isDuplicateEmail) {
-      _showCustomSnackBar('Email already registered', backgroundColor: Colors.red);
+      _showCustomSnackBar('Email already registered',
+          backgroundColor: Colors.red);
       return;
     }
 
@@ -166,7 +175,8 @@ class _RegisterPageState extends State<RegisterPage> {
         latitude = _currentLocation.latitude.toString();
         longitude = _currentLocation.longitude.toString();
       } catch (e) {
-        _showCustomSnackBar('Failed to get current location: $e', backgroundColor: Colors.red);
+        _showCustomSnackBar('Failed to get current location: $e',
+            backgroundColor: Colors.red);
         return;
       }
     } else {
@@ -179,11 +189,14 @@ class _RegisterPageState extends State<RegisterPage> {
           latitude = gpsParts[0].trim();
           longitude = gpsParts[1].trim();
         } else {
-          _showCustomSnackBar('Invalid GPS format. Please provide both latitude and longitude.', backgroundColor: Colors.red);
+          _showCustomSnackBar(
+              'Invalid GPS format. Please provide both latitude and longitude.',
+              backgroundColor: Colors.red);
           return;
         }
       } else {
-        _showCustomSnackBar('Please provide valid GPS coordinates.', backgroundColor: Colors.red);
+        _showCustomSnackBar('Please provide valid GPS coordinates.',
+            backgroundColor: Colors.red);
         return;
       }
     }
@@ -221,33 +234,41 @@ class _RegisterPageState extends State<RegisterPage> {
         });
 
         // แสดงข้อความสำเร็จ
-        _showCustomSnackBar('Registration Successful', backgroundColor: const Color.fromARGB(255, 3, 180, 17));
+        _showCustomSnackBar('Registration Successful',
+            backgroundColor: const Color.fromARGB(255, 3, 180, 17));
 
         // นำทางกลับไปยังหน้าล็อกอินหรือหน้าที่ต้องการ
         Navigator.pop(context);
       } catch (e) {
-        _showCustomSnackBar('Registration Failed: $e', backgroundColor: const Color.fromARGB(255, 255, 0, 0));
+        _showCustomSnackBar('Registration Failed: $e',
+            backgroundColor: const Color.fromARGB(255, 255, 0, 0));
       }
     } else {
       // รหัสผ่านไม่ตรงกัน
-      _showCustomSnackBar('Passwords do not match', backgroundColor: const Color.fromARGB(255, 255, 0, 0));
+      _showCustomSnackBar('Passwords do not match',
+          backgroundColor: const Color.fromARGB(255, 255, 0, 0));
     }
   }
-  void _showCustomSnackBar(String message, {Color? backgroundColor, Color? textColor}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        message,
-        style: TextStyle(color: textColor ?? Colors.white), // กำหนดสีข้อความ
+
+  void _showCustomSnackBar(String message,
+      {Color? backgroundColor, Color? textColor}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(color: textColor ?? Colors.white), // กำหนดสีข้อความ
+        ),
+        backgroundColor: backgroundColor ?? Colors.blue, // กำหนดสีพื้นหลัง
+        duration: const Duration(seconds: 3), // ระยะเวลาแสดง
+        behavior: SnackBarBehavior.floating, // พฤติกรรมการแสดง
       ),
-      backgroundColor: backgroundColor ?? Colors.blue, // กำหนดสีพื้นหลัง
-      duration: const Duration(seconds: 3), // ระยะเวลาแสดง
-      behavior: SnackBarBehavior.floating, // พฤติกรรมการแสดง
-    ),
-  );
-}
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF890E1C),
@@ -260,16 +281,6 @@ class _RegisterPageState extends State<RegisterPage> {
           length: 2,
           child: Column(
             children: [
-              const Center(
-                child: Text(
-                  "Register",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 16.0),
                 decoration: BoxDecoration(
@@ -370,27 +381,28 @@ class _RegisterPageState extends State<RegisterPage> {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20.0),
-                child: ElevatedButton(
-                  onPressed: _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC809),
-                    fixedSize: const Size(350, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+              if (!isKeyboardVisible)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: ElevatedButton(
+                    onPressed: _register,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC809),
+                      fixedSize: const Size(350, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 24,
-                      color: Color.fromARGB(255, 0, 0, 0),
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 24,
+                        color: Color.fromARGB(255, 0, 0, 0),
+                      ),
                     ),
                   ),
                 ),
-              ),
               const SizedBox(height: 20),
             ],
           ),
@@ -440,6 +452,15 @@ class _RegisterPageState extends State<RegisterPage> {
         fontWeight: FontWeight.w400,
         color: Colors.black87, // สีตัวอักษรเมื่อพิมพ์
       ),
+      // ป้องกันการกด space
+      onChanged: (value) {
+        if (value.contains(' ')) {
+          controller.text = value.replaceAll(' ', '');
+          controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: controller.text.length),
+          );
+        }
+      },
       validator: (value) {
         if (value!.isEmpty) {
           return 'Please enter your $label';
@@ -447,6 +468,17 @@ class _RegisterPageState extends State<RegisterPage> {
         // ตรวจสอบความยาวของเบอร์โทร
         if (label == 'Phone' && value.length != 10) {
           return 'Phone number must be 10 digits';
+        }
+        // ตรวจสอบรูปแบบอีเมล
+        if (label == 'Email') {
+          final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+          if (!emailRegExp.hasMatch(value)) {
+            return 'Please enter a valid email address';
+          }
+        }
+        // ตรวจสอบการมี space
+        if (value.contains(' ')) {
+          return 'Spaces are not allowed';
         }
         return null;
       },
