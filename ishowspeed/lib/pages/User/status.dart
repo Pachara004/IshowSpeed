@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:ishowspeed/services/storage/geolocator_services.dart';
@@ -21,6 +22,14 @@ class ProductTrackingPage extends StatefulWidget {
 }
 
 class _ProductTrackingPageState extends State<ProductTrackingPage> {
+  StreamSubscription<DocumentSnapshot>? _productSubscription;
+  StreamSubscription<DocumentSnapshot>? _riderSubscription;
+  
+  Map<String, dynamic>? productData;
+  Map<String, dynamic>? riderData;
+  String? error;
+  bool isLoading = true;
+
   int currentStepIndex = 0;
   LatLng riderLocation = LatLng(
       13.7563, 100.5018); // Default to a location int currentStepIndex = 0;
@@ -37,7 +46,77 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     'Out for Delivery': Icons.motorcycle,
     'Delivered': Icons.check_circle,
   };
+void _subscribeToProduct() {
+    _productSubscription = FirebaseFirestore.instance
+        .collection('Product')
+        .doc(widget.productId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (mounted) {
+          setState(() {
+            if (snapshot.exists) {
+              productData = snapshot.data();
+              _subscribeToRider(productData?['riderId']);
+            } else {
+              error = 'ไม่พบข้อมูลสินค้า';
+            }
+            isLoading = false;
+          });
+        }
+      },
+      onError: (e) {
+        if (mounted) {
+          setState(() {
+            error = 'เกิดข้อผิดพลาด: $e';
+            isLoading = false;
+          });
+        }
+      },
+    );
+  }
 
+  void _subscribeToRider(String? riderId) {
+    // ยกเลิก subscription เดิม (ถ้ามี)
+    _riderSubscription?.cancel();
+
+    if (riderId == null) {
+      if (mounted) {
+        setState(() {
+          riderData = null;
+          error = 'ยังไม่มีไรเดอร์รับงาน';
+        });
+      }
+      return;
+    }
+
+    _riderSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(riderId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (mounted) {
+          setState(() {
+            if (snapshot.exists) {
+              riderData = snapshot.data();
+              error = null;
+            } else {
+              riderData = null;
+              error = 'ไม่พบข้อมูลไรเดอร์';
+            }
+          });
+        }
+      },
+      onError: (e) {
+        if (mounted) {
+          setState(() {
+            error = 'เกิดข้อผิดพลาดในการโหลดข้อมูลไรเดอร์: $e';
+          });
+        }
+      },
+    );
+  }
   String formatDateTime(String? dateTimeStr) {
     if (dateTimeStr == null) return 'N/A';
     try {
@@ -61,11 +140,11 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     final index = shippingSteps.indexOf(status);
     return index >= 0 ? index : 0;
   }
-
+  
   @override
   void initState() {
     super.initState();
-
+    _subscribeToProduct();
     // Get the current rider location asynchronously
     GeolocatorServices.getCurrentLocation().then((location) {
       setState(() {
@@ -76,7 +155,13 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     // Get the current step index from widget's current status
     currentStepIndex = getCurrentStepIndex(widget.currentStatus);
   }
-
+  @override
+  void dispose() {
+    // ยกเลิก subscription เมื่อออกจากหน้าจอ
+    _productSubscription?.cancel();
+    _riderSubscription?.cancel();
+    super.dispose();
+  }
   Widget buildInfoSection(String title, IconData icon, List<String> details) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,7 +191,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     );
   }
 
-  Widget buildProductDetails(Map<String, dynamic> data) {
+  Widget buildProductDetails(Map<String, dynamic> productData) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -123,21 +208,21 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (data['imageUrl'] != null)
+          if (productData['imageUrl'] != null)
             Container(
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 image: DecorationImage(
-                  image: NetworkImage(data['imageUrl']),
+                  image: NetworkImage(productData['imageUrl']),
                   fit: BoxFit.cover,
                 ),
               ),
             ),
           const SizedBox(height: 16),
           Text(
-            data['productName'] ?? 'Unknown Product',
+            productData['productName'] ?? 'Unknown Product',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -145,7 +230,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            data['productDetails'] ?? 'No details available',
+            productData['productDetails'] ?? 'No details available',
             style: const TextStyle(fontSize: 16),
           ),
           const Divider(height: 24),
@@ -153,9 +238,9 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
             'Sender Information',
             Icons.person_outline,
             [
-              'Name: ${data['senderName'] ?? 'N/A'}',
-              if (data['senderLocation'] != null)
-                'Location: ${data['senderLocation'].toString()}',
+              'Name: ${productData['senderName'] ?? 'N/A'}',
+              if (productData['senderLocation'] != null)
+                'Location: ${productData['senderLocation'].toString()}',
             ],
           ),
           const SizedBox(height: 16),
@@ -163,10 +248,10 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
             'Recipient Information',
             Icons.person_pin_circle_outlined,
             [
-              'Name: ${data['recipientName'] ?? 'N/A'}',
-              'Phone: ${data['recipientPhone'] ?? 'N/A'}',
-              if (data['recipientLocation'] != null)
-                'Location: ${data['recipientLocation'].toString()}',
+              'Name: ${productData['recipientName'] ?? 'N/A'}',
+              'Phone: ${productData['recipientPhone'] ?? 'N/A'}',
+              if (productData['recipientLocation'] != null)
+                'Location: ${productData['recipientLocation'].toString()}',
             ],
           ),
           const SizedBox(height: 16),
@@ -174,11 +259,11 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
             'Delivery Timeline',
             Icons.access_time,
             [
-              'Created: ${formatTimestamp(data['createdAt'])}',
-              'Accepted: ${formatTimestamp(data['acceptedAt'])}',
-              'Completed: ${formatTimestamp(data['completedAt'])}',
-              'Last Updated: ${formatTimestamp(data['updatedAt'])}',
-              'Status Update: ${formatTimestamp(data['statusUpdateTime'])}',
+              'Created: ${formatTimestamp(productData['createdAt'])}',
+              'Accepted: ${formatTimestamp(productData['acceptedAt'])}',
+              'Completed: ${formatTimestamp(productData['completedAt'])}',
+              'Last Updated: ${formatTimestamp(productData['updatedAt'])}',
+              'Status Update: ${formatTimestamp(productData['statusUpdateTime'])}',
             ],
           ),
         ],
@@ -187,6 +272,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
   }
 
   Widget buildRiderInfo(Map<String, dynamic> riderData) {
+    log('Building Rider Info with data: $riderData');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -217,7 +303,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Your Rider: ${riderData['name'] ?? 'Unknown'}',
+                  'Your Rider: ${riderData['username'] ?? 'Unknown'}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -384,14 +470,22 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
           }
 
           final data = snapshot.data?.data() as Map<String, dynamic>?;
-          if (data == null) {
+          if (productData == null) {
             return const Center(child: Text('Product not found'));
           }
 
-          if (data['riderLocation'] != null) {
-            final GeoPoint location = data['riderLocation'];
+          final String? riderId = productData!['riderId'] as String?;
+          log('RiderId from Product: $riderId');
+
+          if (riderId == null) {
+            return const Center(child: Text('No rider assigned yet'));
+          }
+
+          if (productData!['riderLocation'] != null) {
+            final GeoPoint location = productData!['riderLocation'];
             riderLocation = LatLng(location.latitude, location.longitude);
           }
+
           return FutureBuilder(
             future: GeolocatorServices
                 .getCurrentLocation(), // Wait for rider location to load
@@ -400,22 +494,25 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
                 // Show a loading spinner until location is fetched
                 return const Center(child: CircularProgressIndicator());
               }
-
-              if (snapshot.hasError || riderLocation == null) {
-                return const Center(
-                    child: Text('Error loading map or location not available'));
-              }
               return StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(data['userId'])
+                    .doc(riderId)
                     .snapshots(),
                 builder: (context, riderSnapshot) {
-                  Map<String, dynamic>? riderData;
-                  if (riderSnapshot.hasData && riderSnapshot.data != null) {
-                    riderData =
-                        riderSnapshot.data!.data() as Map<String, dynamic>?;
-                  }
+                  if (riderSnapshot.hasError) {
+                  log('Error fetching rider data: ${riderSnapshot.error}');
+                  return const Center(child: Text('Error loading rider data'));
+                }
+                if (riderSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final riderData = riderSnapshot.data?.data() as Map<String, dynamic>?;
+                log('Rider Data: $riderData'); // เพิ่ม log เพื่อตรวจสอบข้อมูล rider
+
+                if (riderData == null) {
+                  return const Center(child: Text('Rider data not available'));
+                }
 
                   return SingleChildScrollView(
                     child: Column(
@@ -446,11 +543,11 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
                                       size: 40,
                                     ),
                                   ),
-                                  if (data['deliveryLocation'] != null)
+                                  if (productData!['deliveryLocation'] != null)
                                     Marker(
                                       point: LatLng(
-                                        data['deliveryLocation'].latitude,
-                                        data['deliveryLocation'].longitude,
+                                        productData!['deliveryLocation'].latitude,
+                                        productData!['deliveryLocation'].longitude,
                                       ),
                                       width: 40,
                                       height: 40,
@@ -466,7 +563,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
                           ),
                         ),
                         buildStatusTracking(currentStepIndex),
-                        buildProductDetails(data),
+                        buildProductDetails(productData!),
                       ],
                     ),
                   );
