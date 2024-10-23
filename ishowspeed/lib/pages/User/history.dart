@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,6 +22,7 @@ class _UserHistoryPageState extends State<UserHistoryPage>
     
     // Get current user immediately
     _currentUser = FirebaseAuth.instance.currentUser;
+    log('Initial user: ${_currentUser?.uid} - ${_currentUser?.phoneNumber}');
     
     // Listen for auth changes
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
@@ -76,7 +79,7 @@ class _UserHistoryPageState extends State<UserHistoryPage>
           controller: _tabController,
           children: [
             _buildProductList('Products you sent', "userId"),
-            _buildProductList('Products you received', "recipientId"),
+            _buildProductList('Products you received', "recipientPhone"),
           ],
         ),
       ),
@@ -84,18 +87,22 @@ class _UserHistoryPageState extends State<UserHistoryPage>
   }
 
   Widget _buildProductList(String title, String filterField) {
-    print('Current user ID: ${_currentUser?.uid}'); // Debug print
-    
+    log('Current user ID: ${_currentUser?.uid}'); // Debug print
+    // ดึง phone number จาก current user
+    String? userIdentifier = filterField == "recipientPhone" 
+        ? _currentUser?.phoneNumber  // ใช้ phone number สำหรับ recipient
+        : _currentUser?.uid;         // ใช้ uid สำหรับ sender
     return Container(
       color: const Color(0xFFFFC809),
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('Product')
-            .where(filterField, isEqualTo: _currentUser!.uid)
+            .where(filterField, isEqualTo: userIdentifier)
             .where("status", whereNotIn: ["waiting"])
             .snapshots(),
         builder: (context, snapshot) {
-          print('Snapshot data: ${snapshot.data?.docs.length}'); // Debug print
+          log('Snapshot Connection State: ${snapshot.connectionState}');
+          log('Snapshot data: ${snapshot.data?.docs.length}'); // Debug print
           
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -104,13 +111,14 @@ class _UserHistoryPageState extends State<UserHistoryPage>
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            log('No documents found for recipientPhone: ${_currentUser!.uid}');
             return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text('No $title available.'),
-              ),
+                child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text('No $title available.'),
+                ),
             );
-          }
+        }
 
           // Convert docs to list and sort in memory if needed
           final docs = snapshot.data!.docs.toList()

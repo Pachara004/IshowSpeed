@@ -59,8 +59,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       widget.order['senderLocation']['longitude'],
     );
 
-    SystemChannels.platform
-        .invokeMethod<void>('SystemNavigator.preventPopOnBackPress');
   }
 
   @override
@@ -370,14 +368,14 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     var recipientLocationLat = widget.order['recipientLocation']['latitude'];
     var recipientLocationLng = widget.order['recipientLocation']['longitude'];
 
-    return WillPopScope(
-        onWillPop: () async => false,
-        child: Scaffold(
+    return Scaffold(
+        // onWillPop: () async => false,
+
           appBar: AppBar(
             title: const Text('Order Details'),
             backgroundColor: const Color(0xFF890E1C),
             foregroundColor: Colors.white,
-            // automaticallyImplyLeading: false, // Remove back button
+            automaticallyImplyLeading: true, // Remove back button
             leading:
                 Container(), // Empty container to prevent any leading widget
             actions: [
@@ -505,7 +503,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               ],
             ),
           ),
-        ));
+        );
   }
 
   Widget _buildSection(String title, List<Widget> children) {
