@@ -26,6 +26,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   String? _imageUrl;
   XFile? _imageFile;
   LatLng? _recipientLocation;
+  LatLng? _senderLocation;
   List<Map<String, String>> _searchResults = [];
   
   final ValueNotifier<LatLng?> selectedLocationNotifier = ValueNotifier<LatLng?>(null);
@@ -34,7 +35,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
   
   final TextEditingController _recipientPhoneController = TextEditingController();
   final TextEditingController _recipientNameController = TextEditingController();
-
+@override
+  void initState() {
+    super.initState();
+    _fetchAndSetSenderLocation();
+  }
   Future<void> _showImageSourceDialog() {
     return showDialog(
       context: context,
@@ -94,7 +99,37 @@ class _AddProductDialogState extends State<AddProductDialog> {
       }
     }
   }
-
+Future<void> _fetchAndSetSenderLocation() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot<Map<String, dynamic>> userDoc =
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        
+        Map<String, dynamic>? gpsData = userDoc.data()?['gps']?['map'];
+        if (gpsData != null) {
+          setState(() {
+            _senderLocation = LatLng(
+              gpsData['latitude'],
+              gpsData['longitude'],
+            );
+          });
+        } else {
+          // If no stored location, get current location
+          Location location = Location();
+          LocationData locationData = await location.getLocation();
+          setState(() {
+            _senderLocation = LatLng(
+              locationData.latitude!,
+              locationData.longitude!,
+            );
+          });
+        }
+      }
+    } catch (e) {
+      log('Failed to fetch sender location: $e');
+    }
+  }
   Future<void> _fetchRecipientLocation(String phoneNumber) async {
     var querySnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -450,6 +485,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
         'recipientPhone': _recipientPhone,
         'imageUrl': _imageUrl,
         'userId': userId,
+        'senderLocation': _senderLocation != null ? {
+          'latitude': _senderLocation!.latitude,
+          'longitude': _senderLocation!.longitude,
+          'formattedLocation': '${_senderLocation!.latitude.toStringAsFixed(4)}, ${_senderLocation!.longitude.toStringAsFixed(4)}'
+        } : null,
         'recipientLocation': {
           'latitude': selectedLocation.latitude,
           'longitude': selectedLocation.longitude,

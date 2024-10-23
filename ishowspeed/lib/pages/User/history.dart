@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ishowspeed/pages/User/status.dart';
 
 class UserHistoryPage extends StatefulWidget {
   @override
@@ -131,6 +132,7 @@ class _UserHistoryPageState extends State<UserHistoryPage>
                 recipientName: data['recipientName'] ?? 'Unknown Recipient',
                 imageUrl: data['imageUrl'] ?? '',
                 status: data['status'] ?? 'Unknown',
+                productId: doc.id,
               );
             },
           );
@@ -139,204 +141,107 @@ class _UserHistoryPageState extends State<UserHistoryPage>
     );
   }
 
-  Widget ProductItem({
-    required String name,
-    required String senderName,
-    required String recipientName,
-    required String imageUrl,
-    required String status,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFAB000D),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Padding(
+Widget ProductItem({
+  required String name,
+  required String senderName,
+  required String recipientName,
+  required String imageUrl,
+  required String status,
+  required String productId,  // Add this parameter
+}) {
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 8),
+    decoration: BoxDecoration(
+      color: const Color(0xFFAB000D),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 74,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 74,
+                          height: 80,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error),
+                        );
+                      },
+                    )
+                  : Container(
+                      width: 74,
+                      height: 80,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image),
+                    ),
+            ),
+            Expanded(
+              child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        width: 74,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 74,
-                            height: 80,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.error),
-                          );
-                        },
-                      )
-                    : Container(
-                        width: 74,
-                        height: 80,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Product: $name',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Product: $name',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Sender: $senderName',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      Text(
-                        'Recipient: $recipientName',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sender: $senderName',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    Text(
+                      'Recipient: $recipientName',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => _showStatusDialog(context, status),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC809),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 16,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductTrackingPage(
+                        productId: productId,
+                        currentStatus: status,
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Status'),
-                ),
-              ),
-            ],
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: GestureDetector(
-                onTap: () {
-                  // Add functionality for detail view
+                  );
                 },
-                child: const Text(
-                  'Click for detail',
-                  style: TextStyle(
-                    color: Colors.white,
-                    decoration: TextDecoration.underline,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC809),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
+                child: const Text('Track Order'),  // Changed text from 'Status' to 'Track Order'
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showStatusDialog(BuildContext context, String status) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        List<String> shippingSteps = [
-          'Order Placed',
-          'Rider Going to Pick Up',
-          'Out for Delivery',
-          'Delivered'
-        ];
-
-        Map<String, IconData> statusIcons = {
-          'Order Placed': Icons.assignment_turned_in,
-          'Rider Going to Pick Up': Icons.motorcycle_sharp,
-          'Out for Delivery': Icons.motorcycle,
-          'Delivered': Icons.check_circle,
-        };
-
-        int currentStepIndex = shippingSteps.indexOf(status);
-
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            width: 500,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Shipping Status',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Current status: $status',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(shippingSteps.length, (index) {
-                    return Column(
-                      children: [
-                        Icon(
-                          statusIcons[shippingSteps[index]],
-                          size: 30,
-                          color: index <= currentStepIndex
-                              ? Colors.green
-                              : Colors.grey,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          shippingSteps[index],
-                          style: TextStyle(
-                            color: index <= currentStepIndex
-                                ? Colors.green
-                                : Colors.grey,
-                            fontSize: 12, // Fixed from 0.2 to 12
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-                const SizedBox(height: 20),
-                LinearProgressIndicator(
-                  value: (currentStepIndex + 1) / shippingSteps.length,
-                  color: Colors.green,
-                  backgroundColor: Colors.grey[300],
-                ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Close'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+          ],
+        ),
+      ],
+    ),
+  );
+}
 }

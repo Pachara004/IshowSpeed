@@ -2,8 +2,11 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:ishowspeed/pages/Rider/order.dart';
+import 'package:ishowspeed/pages/Rider/orderdetails.dart';
 import 'package:ishowspeed/pages/Rider/profilerider.dart';
+import 'package:latlong2/latlong.dart';
 
 // Model class for RecipientLocation
 class RecipientLocation {
@@ -166,7 +169,14 @@ class _RiderHomePageState extends State<RiderHomePage> {
           return; // ออกจากฟังก์ชันหากงานถูกยอมรับแล้ว
         }
       }
-
+      // Get current location
+      Position currentPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      LatLng currentLocation = LatLng(
+        currentPosition.latitude,
+        currentPosition.longitude,
+      );
       // อัปเดตสถานะผลิตภัณฑ์
       await FirebaseFirestore.instance
           .collection('Product')
@@ -181,12 +191,29 @@ class _RiderHomePageState extends State<RiderHomePage> {
       });
 
       // ดึงข้อมูลของผลิตภัณฑ์
-      var productData = productSnapshot.data() as Map<String, dynamic>?;
+      var productData = productSnapshot.data() as Map<String, dynamic>;
 
       setState(() {
         _hasActiveOrder = true;
       });
       await _fetchProducts();
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrderDetailsPage(
+              order: {
+                ...productData,
+                'orderId': productId,
+                'productId': productId,
+              },
+              productData: productData,
+              currentLocation: currentLocation,
+            ),
+          ),
+        );
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -488,15 +515,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
           ),
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) =>
-                    _productDetailDialog(context, product, onAccept),
-              );
-            },
             child: const Text(
-              'Click for detail',
+              '',
               style: TextStyle(
                 color: Color.fromARGB(255, 255, 17, 0),
                 fontWeight: FontWeight.bold,
@@ -506,115 +526,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _productDetailDialog(
-    BuildContext context,
-    Map<String, dynamic> product,
-    Function onAccept,
-  ) {
-    RecipientLocation location = RecipientLocation.fromMap(
-        product['recipientLocation'] as Map<String, dynamic>);
-
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Container(
-        width: 600,
-        height: 600,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF890E1C),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: 10),
-            Center(
-              child: Image.network(
-                product['imageUrl'] ?? '',
-                height: 150,
-                errorBuilder: (context, error, stackTrace) =>
-                    Image.asset('assets/images/red_shirt.png', height: 150),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Product Details:',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Details: ${product['productDetails'] ?? 'N/A'}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Sender: ${product['senderName'] ?? 'N/A'}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Recipient: ${product['recipientName'] ?? 'N/A'}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Recipient\'s phone: ${product['recipientPhone'] ?? 'N/A'}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Address: ${location.address}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Latitude: ${location.latitude}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Longitude: ${location.longitude}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const Spacer(),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  onAccept();
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.black,
-                  backgroundColor: const Color(0xFFFFC809),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 15,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Accept Order'),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

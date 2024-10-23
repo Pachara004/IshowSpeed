@@ -132,12 +132,12 @@ Widget _buildCenteredInfo(String title, String content) {
       children: [
         Center(
           child: Container(
-            color: const Color(0xFF890E1C),
+            // color: const Color(0xFF890E1C),
             padding: const EdgeInsets.all(8.0), // เพิ่ม padding ให้กับข้อความ
             child: Text(
               title,
               style: const TextStyle(
-                color: Color.fromARGB(255, 255, 255, 255), // สีข้อความเป็นสีขาว
+                // color: Color.fromARGB(255, 255, 255, 255), // สีข้อความเป็นสีขาว
                 fontSize: 18,
                 fontWeight: FontWeight.bold, // ทำให้หัวข้อหนาขึ้น
               ),
