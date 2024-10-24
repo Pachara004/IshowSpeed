@@ -8,6 +8,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:ishowspeed/pages/Rider/riderhome.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path/path.dart' as path;
@@ -43,6 +44,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   List<String> _photos = [];
   String _currentStatus = '';
   LatLng? _targetLocation;
+  List<LatLng> _routePoints = [];
 
   @override
   void initState() {
@@ -58,6 +60,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       widget.order['senderLocation']['latitude'],
       widget.order['senderLocation']['longitude'],
     );
+    _updateRoutePoints();
+  }
+
+  void _updateRoutePoints() {
+    if (_currentRiderLocation != null && _targetLocation != null) {
+      setState(() {
+        _routePoints = [
+          _currentRiderLocation!,
+          _targetLocation!,
+        ];
+      });
+    }
   }
 
   @override
@@ -100,6 +114,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               widget.order['senderLocation']['longitude'],
             );
           }
+          _updateRoutePoints();
         });
       }
     });
@@ -130,10 +145,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       if (mounted) {
         setState(() {
           _currentRiderLocation = LatLng(position.latitude, position.longitude);
+          _updateRoutePoints(); // อัปเดตเส้นทางเมื่อตำแหน่งเปลี่ยน
         });
 
         // Update Firestore with new location
         _updateRiderLocation(position);
+        _updateRoutePoints();
 
         // Move map if following is enabled
         if (_isFollowingRider) {
@@ -352,7 +369,14 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           'Delivery completed successfully',
           backgroundColor: const Color.fromARGB(255, 3, 180, 17),
         );
-        Navigator.of(context).pop();
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => RiderHomePage()),
+            );
+          }
+        });
       }
     } catch (e) {
       _showCustomSnackBar(
@@ -420,6 +444,20 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                               'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                           subdomains: const ['a', 'b', 'c'],
                         ),
+                        if (_currentRiderLocation != null &&
+                            _targetLocation != null)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: [
+                                  _currentRiderLocation!,
+                                  _targetLocation!
+                                ],
+                                color: Colors.blue,
+                                strokeWidth: 3.0,
+                              ),
+                            ],
+                          ),
                         MarkerLayer(
                           markers: [
                             if (_currentRiderLocation != null)
