@@ -396,7 +396,7 @@ class _UserDashboardState extends State<UserDashboard>
                 showDialog(
                   context: context,
                   builder: (BuildContext context) {
-                    return AddProductDialog(senderName: _username ?? 'Unknown');
+                    return AddProductPage(senderName: _username ?? 'Unknown');
                   },
                 );
               },

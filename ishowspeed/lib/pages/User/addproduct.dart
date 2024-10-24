@@ -9,20 +9,18 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:location/location.dart';
 
-class AddProductDialog extends StatefulWidget {
+class AddProductPage extends StatefulWidget {
   final String senderName;
 
-  const AddProductDialog({Key? key, required this.senderName})
-      : super(key: key);
+  const AddProductPage({Key? key, required this.senderName}) : super(key: key);
 
   @override
-  _AddProductDialogState createState() => _AddProductDialogState();
+  _AddProductPageState createState() => _AddProductPageState();
 }
 
-class _AddProductDialogState extends State<AddProductDialog> {
+class _AddProductPageState extends State<AddProductPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
-
   String? _productName, _productDetails, _recipientName, _recipientPhone;
   String? _imageUrl;
   XFile? _imageFile;
@@ -146,25 +144,64 @@ class _AddProductDialogState extends State<AddProductDialog> {
   }
 
   Future<void> _fetchRecipientLocation(String phoneNumber) async {
-    var querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('phone', isEqualTo: phoneNumber)
-        .get();
+    try {
+      var querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('phone', isEqualTo: phoneNumber)
+          .get();
 
-    if (querySnapshot.docs.isNotEmpty) {
-      var recipientData = querySnapshot.docs.first.data();
-      var recipientLocation = recipientData['gps']['map'];
+      if (querySnapshot.docs.isNotEmpty) {
+        var recipientData = querySnapshot.docs.first.data();
+        log(
+            'Recipient data: $recipientData'); // ดูข้อมูลที่ได้รับจาก Firestore
 
-      setState(() {
-        _recipientLocation = LatLng(
-          recipientLocation['latitude'],
-          recipientLocation['longitude'],
-        );
-        _recipientName = recipientData['username'];
-        _recipientPhone = phoneNumber;
+        var recipientLocation = recipientData['gps']['map'];
+        log(
+            'Recipient location: $recipientLocation'); // ตรวจสอบโครงสร้าง location
 
+        setState(() {
+          _recipientLocation = LatLng(
+            recipientLocation['latitude'],
+            recipientLocation['longitude'],
+          );
+          _recipientName = recipientData['username'];
+          _recipientPhone = phoneNumber;
+        });
+
+        // อัพเดทตำแหน่งที่เลือกในแผนที่
         selectedLocationNotifier.value = _recipientLocation;
-      });
+
+        // เพิ่มการอัพเดท MapController เพื่อเลื่อนไปยังตำแหน่งของผู้รับ
+        if (isMapLoaded.value) {
+          MapController mapController = MapController();
+          mapController.move(_recipientLocation!, 15.0);
+        }
+
+        // แสดง SnackBar เพื่อยืนยันการเลือกผู้รับ
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Selected recipient: $_recipientName ($_recipientPhone)'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        log('No recipient found'); // กรณีไม่พบผู้รับ
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recipient not found'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      log('Error fetching recipient location: $e'); // พิมพ์ error ที่เกิดขึ้น
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to fetch recipient location'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -186,105 +223,114 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF890E1C),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Image Selection Section
-                CircleAvatar(
-                  backgroundColor: Colors.white,
-                  radius: 30,
-                  child: IconButton(
-                    icon: const Icon(Icons.add_a_photo,
-                        color: Color(0xFF890E1C), size: 30),
-                    onPressed: _showImageSourceDialog,
-                  ),
-                ),
-                if (_imageFile != null) ...[
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return Dialog(
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              child: Image.file(
-                                File(_imageFile!.path),
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: 300,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(_imageFile!.path),
-                        width: 150,
-                        height: 150,
-                        fit: BoxFit.cover,
-                      ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ADD PRODUCT'),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF890E1C),
+        foregroundColor: Colors.white,
+      ),
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF890E1C),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Image Selection Section
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 30,
+                    child: IconButton(
+                      icon: const Icon(Icons.add_a_photo,
+                          color: Color(0xFF890E1C), size: 30),
+                      onPressed: _showImageSourceDialog,
                     ),
                   ),
-                ],
+                  if (_imageFile != null) ...[
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return Dialog(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Image.file(
+                                  File(_imageFile!.path),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 300,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(_imageFile!.path),
+                          width: 150,
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ],
 
-                // Map Section
-                const SizedBox(height: 16),
-                const Text('Select delivery location:',
-                    style: TextStyle(color: Colors.white, fontSize: 18)),
-                SizedBox(
-                  height: 200,
-                  child: _buildMap(),
-                ),
-
-                // Location Display
-                ValueListenableBuilder<LatLng?>(
-                  valueListenable: selectedLocationNotifier,
-                  builder: (context, selectedLocation, _) {
-                    return Text(
-                      selectedLocation != null
-                          ? 'Selected Location: ${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}'
-                          : 'Selected Location: Not selected',
-                      style: const TextStyle(color: Colors.white),
-                    );
-                  },
-                ),
-
-                // Form Fields
-                const SizedBox(height: 16),
-                _buildTextField(
-                    'Product Name', (value) => _productName = value),
-                _buildTextField(
-                    'Product details', (value) => _productDetails = value),
-                _buildRecipientSection(),
-
-                // Submit Button
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  child: const Text('Confirm'),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.black,
-                    backgroundColor: const Color(0xFFFFC809),
-                    minimumSize: const Size(double.infinity, 50),
+                  // Map Section
+                  const SizedBox(height: 16),
+                  const Text('Select delivery location:',
+                      style: TextStyle(color: Colors.white, fontSize: 18)),
+                  SizedBox(
+                    height: 200,
+                    child: _buildMap(),
                   ),
-                  onPressed: _handleSubmit,
-                ),
-              ],
+
+                  // Location Display
+                  ValueListenableBuilder<LatLng?>(
+                    valueListenable: selectedLocationNotifier,
+                    builder: (context, selectedLocation, _) {
+                      return Text(
+                        selectedLocation != null
+                            ? 'Selected Location: ${selectedLocation.latitude.toStringAsFixed(4)}, ${selectedLocation.longitude.toStringAsFixed(4)}'
+                            : 'Selected Location: Not selected',
+                        style: const TextStyle(color: Colors.white),
+                      );
+                    },
+                  ),
+
+                  // Form Fields
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                      'Product Name', (value) => _productName = value),
+                  _buildTextField(
+                      'Product details', (value) => _productDetails = value),
+                  _buildRecipientSection(),
+
+                  // Submit Button
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    child: const Text('Confirm'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      backgroundColor: const Color(0xFFFFC809),
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: _handleSubmit,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -339,12 +385,13 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
   List<Marker> _buildMarkers(LatLng currentLocation, LatLng? selectedLocation) {
     List<Marker> markers = [
+      // แสดงตำแหน่งปัจจุบัน
       Marker(
         point: currentLocation,
         child: const Icon(Icons.place, color: Colors.blue, size: 40),
       ),
     ];
-
+    // แสดงตำแหน่งผู้รับ ถ้ามี
     if (_recipientLocation != null) {
       markers.add(
         Marker(
@@ -354,8 +401,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
         ),
       );
     }
-
-    if (selectedLocation != null && selectedLocation != _recipientLocation) {
+    // แสดงตำแหน่งที่เลือก ถ้าไม่ใช่ตำแหน่งเดียวกับผู้รับ
+    if (selectedLocation != null &&
+        (_recipientLocation == null ||
+            selectedLocation.latitude != _recipientLocation!.latitude ||
+            selectedLocation.longitude != _recipientLocation!.longitude)) {
       markers.add(
         Marker(
           point: selectedLocation,
@@ -367,6 +417,15 @@ class _AddProductDialogState extends State<AddProductDialog> {
     return markers;
   }
 
+  TextEditingController _phoneController = TextEditingController();
+  void _handlePhoneSelection(String selectedPhoneNumber) {
+    setState(() {
+      _phoneController.text = selectedPhoneNumber; // อัปเดตค่าหมายเลขที่เลือก
+      _recipientPhone = selectedPhoneNumber;
+      // อัปเดตฟิลด์อื่นๆ ที่จำเป็น เช่น ชื่อผู้รับ
+    });
+  }
+
   Widget _buildRecipientSection() {
     return Column(
       children: [
@@ -375,6 +434,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           child: Column(
             children: [
               TextFormField(
+                controller: _phoneController,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
@@ -384,26 +444,44 @@ class _AddProductDialogState extends State<AddProductDialog> {
                   prefixIcon: const Icon(Icons.phone),
                 ),
                 onChanged: _handlePhoneSearch,
-                validator: (value) =>
-                    value!.isEmpty ? 'Phone number is required' : null,
-                onSaved: (value) => _recipientPhone = value,
+                // validator: (value) =>
+                //     value!.isEmpty ? 'Phone number is required' : null,
+                // onSaved: (value) => _recipientPhone = value,
               ),
               if (_searchResults.isNotEmpty) _buildSearchResults(),
+
               const SizedBox(height: 8),
-              TextFormField(
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  labelText: 'Recipient Name',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  prefixIcon: const Icon(Icons.person),
+              // แสดงข้อมูลผู้รับที่เลือก
+              if (_recipientName != null && _recipientPhone != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Recipient Information',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Name: $_recipientName'),
+                      Text('Phone: $_recipientPhone'),
+                      if (_recipientLocation != null)
+                        Text(
+                          'Location: ${_recipientLocation!.latitude.toStringAsFixed(4)}, '
+                          '${_recipientLocation!.longitude.toStringAsFixed(4)}',
+                        ),
+                    ],
+                  ),
                 ),
-                enabled: false,
-                controller: TextEditingController(text: _recipientName),
-                validator: (value) =>
-                    value!.isEmpty ? 'Recipient name is required' : null,
-              ),
+              ],
             ],
           ),
         ),
@@ -468,6 +546,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
       _fetchRecipientLocation(_recipientPhone!);
       _searchResults = [];
     });
+    _fetchRecipientLocation(_recipientPhone!);
   }
 
   Future<String?> _getCurrentUserPhone() async {
@@ -667,8 +746,7 @@ class AddProductDialogHelper {
   static void show(BuildContext context, String senderName) {
     showDialog(
       context: context,
-      builder: (BuildContext context) =>
-          AddProductDialog(senderName: senderName),
+      builder: (BuildContext context) => AddProductPage(senderName: senderName),
     );
   }
 }
