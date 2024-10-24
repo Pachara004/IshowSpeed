@@ -30,7 +30,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _vehicleController = TextEditingController();
   final TextEditingController _gpsController = TextEditingController();
   String _userType = 'User'; // Track user type based on selected tab
-
+  bool _isObscured = true;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   File? _profileImage;
 
@@ -414,9 +414,10 @@ class _RegisterPageState extends State<RegisterPage> {
   // Text field with label and icon
   Widget _buildTextField(
       String label, TextEditingController controller, IconData icon,
-      {TextInputType inputType = TextInputType.text}) {
+      {TextInputType inputType = TextInputType.text, bool isPassword = false}) {
     return TextFormField(
       controller: controller,
+      obscureText: isPassword, // ถ้าเป็นรหัสผ่านให้ซ่อนตัวอักษร
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
@@ -452,15 +453,25 @@ class _RegisterPageState extends State<RegisterPage> {
         fontWeight: FontWeight.w400,
         color: Colors.black87, // สีตัวอักษรเมื่อพิมพ์
       ),
-      // ป้องกันการกด space
       onChanged: (value) {
-        if (value.contains(' ')) {
-          controller.text = value.replaceAll(' ', '');
+        // ตรวจสอบถ้าเป็นฟิลด์รหัสผ่าน ห้ามกด spacebar
+        if (isPassword && value.contains(' ')) {
+          controller.text = value.replaceAll(' ', ''); // ลบช่องว่างออก
           controller.selection = TextSelection.fromPosition(
-            TextPosition(offset: controller.text.length),
+            TextPosition(
+                offset: controller.text.length), // ตั้งตำแหน่งเคอร์เซอร์ใหม่
+          );
+        }
+        // ถ้าไม่ใช่รหัสผ่าน ห้ามกด spacebar
+        if (!isPassword && value.contains(' ')) {
+          controller.text = value.replaceAll(' ', ''); // ลบช่องว่างออก
+          controller.selection = TextSelection.fromPosition(
+            TextPosition(
+                offset: controller.text.length), // ตั้งตำแหน่งเคอร์เซอร์ใหม่
           );
         }
       },
+
       validator: (value) {
         if (value!.isEmpty) {
           return 'Please enter your $label';
@@ -476,56 +487,59 @@ class _RegisterPageState extends State<RegisterPage> {
             return 'Please enter a valid email address';
           }
         }
-        // ตรวจสอบการมี space
-        if (value.contains(' ')) {
-          return 'Spaces are not allowed';
+        // ตรวจสอบรหัสผ่านและยืนยันรหัสผ่าน
+        if (label == 'Password' || label == 'Confirm Password') {
+          // ห้ามมีช่องว่างในรหัสผ่าน
+          if (value.contains(' ')) {
+            return 'Password cannot contain spaces';
+          }
+          // ตรวจสอบความยาวของรหัสผ่าน (อย่างน้อย 6 ตัวอักษร)
+          if (value.length < 6) {
+            return 'Password must be at least 6 characters long';
+          }
         }
         return null;
       },
     );
   }
 
-  // Password field with validation for matching
   Widget _buildPasswordField(String label, TextEditingController controller,
       [TextEditingController? matchingController]) {
-    bool _isObscured = true;
     return TextFormField(
       controller: controller,
-      obscureText: _isObscured, // ใช้สถานะเพื่อควบคุมการปกปิดรหัสผ่าน
+      obscureText: _isObscured,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-          color: Colors.grey[700], // สีของ label ที่ดูทันสมัย
+          color: Colors.grey[700],
           fontWeight: FontWeight.w500,
           fontSize: 16,
         ),
         filled: true,
-        fillColor: Colors.grey[100], // สีพื้นหลังที่อ่อนนุ่ม
+        fillColor: Colors.grey[100],
         prefixIcon: const Icon(
           Icons.lock,
-          color: Colors.blueAccent, // สีของไอคอนรหัสผ่าน
+          color: Colors.blueAccent,
         ),
         suffixIcon: IconButton(
           icon: Icon(
-            _isObscured
-                ? Icons.visibility
-                : Icons.visibility_off, // เปลี่ยนไอคอนตามสถานะ
+            _isObscured ? Icons.visibility : Icons.visibility_off,
             color: Colors.blueAccent,
           ),
           onPressed: () {
             setState(() {
-              _isObscured = !_isObscured; // เปลี่ยนสถานะการแสดงรหัสผ่าน
+              _isObscured = !_isObscured;
             });
           },
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(25), // เพิ่มความโค้งมนมากขึ้น
-          borderSide: BorderSide.none, // เอาเส้นขอบออก
+          borderRadius: BorderRadius.circular(25),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
           borderSide: const BorderSide(
-            color: Colors.blueAccent, // สีขอบเมื่อโฟกัส
+            color: Colors.blueAccent,
             width: 2,
           ),
         ),
@@ -537,11 +551,23 @@ class _RegisterPageState extends State<RegisterPage> {
       style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w400,
-        color: Colors.black87, // สีของตัวอักษรเมื่อพิมพ์
+        color: Colors.black87,
       ),
+      onChanged: (value) {
+        if (value.contains(' ')) {
+          // ลบช่องว่างออกจากข้อความ
+          controller.text = value.replaceAll(' ', '');
+          // ตั้งตำแหน่งเคอร์เซอร์ไปที่ท้ายข้อความ
+          controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: controller.text.length),
+          );
+        }
+      },
       validator: (value) {
         if (value!.isEmpty) {
           return 'Please enter your password';
+        } else if (value.contains(' ')) {
+          return 'Password cannot contain spaces';
         } else if (matchingController != null &&
             value != matchingController.text) {
           return 'Passwords do not match';
