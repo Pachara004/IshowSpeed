@@ -95,7 +95,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           _currentStatus = newStatus;
 
           // Update target location based on status
-          if (newStatus == 'in_progress') {
+          if (newStatus == 'in progress') {
             _targetLocation = LatLng(
               widget.order['recipientLocation']['latitude'],
               widget.order['recipientLocation']['longitude'],
@@ -264,7 +264,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       });
       // อัพเดทสถานะตามเงื่อนไขที่ถูกต้อง
       if (_currentStatus == 'accepted') {
-        await _updateOrderStatus('in_progress');
+        await _updateOrderStatus('in progress');
         // _startDeliveringTimer();
       } else if (_currentStatus == 'delivering') {
         await _completeDelivery();
@@ -285,7 +285,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   // void _startDeliveringTimer() {
   //   _deliveryingTimer = Timer(const Duration(seconds: 5), () {
-  //     if (_currentStatus == 'in_progress') {
+  //     if (_currentStatus == 'in progress') {
   //       _updateOrderStatus('delivering');
   //     }
   //   });
@@ -310,7 +310,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       setState(() {
         _currentStatus = newStatus;
       });
-      if (newStatus == 'in_progress' || newStatus == 'delivering') {
+      if (newStatus == 'in progress' || newStatus == 'delivering') {
         setState(() {
           _targetLocation = LatLng(
             widget.order['recipientLocation']['latitude'],
@@ -325,7 +325,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           backgroundColor: const Color.fromARGB(255, 3, 180, 17),
         );
       }
-      if (newStatus == 'delivery_complete' && mounted) {
+      if (newStatus == 'Delivered' && mounted) {
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -351,17 +351,17 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
 
     try {
-      // อัพเดท status ใน Firestore เป็น delivery_complete
+      // อัพเดท status ใน Firestore เป็น Delivered
       await FirebaseFirestore.instance
           .collection('Product')
           .doc(widget.order['productId'].toString())
           .update({
-        'status': 'delivery_complete',
+        'status': 'Delivered',
         'statusUpdateTime': FieldValue.serverTimestamp(),
       });
 
       setState(() {
-        _currentStatus = 'delivery_complete';
+        _currentStatus = 'Delivered';
       });
 
       if (mounted) {
@@ -475,7 +475,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                       0), // ตรวจสอบว่าถ้าเป็น null จะใช้ค่าเริ่มต้น
                               child: Icon(
                                 (_currentStatus ?? '') ==
-                                        'in_progress' // ตรวจสอบ null ของ _currentStatus
+                                        'in progress' // ตรวจสอบ null ของ _currentStatus
                                     ? Icons
                                         .location_on // Recipient location icon
                                     : Icons.store, // Sender location icon
@@ -624,9 +624,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         return _buildActionButton(
           'Accept Delivery',
           Icons.delivery_dining,
-          () => _updateOrderStatus('in_progress'),
+          () => _updateOrderStatus('in progress'),
         );
-      case 'in_progress':
+      case 'in progress':
         bool hasEnoughPhotos = _photos.length == 2;
         return _buildActionButton(
           'Mark as Delivered',
@@ -640,7 +640,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                   );
                 },
         );
-      case 'delivery_complete':
+      case 'Delivered': 
         return Container(
           padding: const EdgeInsets.all(16.0),
           child: const Text(

@@ -24,29 +24,30 @@ class ProductTrackingPage extends StatefulWidget {
 class _ProductTrackingPageState extends State<ProductTrackingPage> {
   StreamSubscription<DocumentSnapshot>? _productSubscription;
   StreamSubscription<DocumentSnapshot>? _riderSubscription;
-  
+
   Map<String, dynamic>? productData;
   Map<String, dynamic>? riderData;
   String? error;
   bool isLoading = true;
 
   int currentStepIndex = 0;
-  LatLng riderLocation = LatLng(
-      13.7563, 100.5018); // Default to a location int currentStepIndex = 0;
+  LatLng riderLocation = LatLng(13.7563, 100.5018);
+
   final List<String> shippingSteps = [
     'Order Placed',
-    'In Progress',
-    'Out for Delivery',
+    'in progress',
+    'Out for Delivery', //delivering
     'Delivered'
   ];
 
   final Map<String, IconData> statusIcons = {
     'Order Placed': Icons.assignment_turned_in,
-    'In Progress': Icons.motorcycle_sharp,
+    'in progress': Icons.motorcycle_sharp,
     'Out for Delivery': Icons.motorcycle,
     'Delivered': Icons.check_circle,
   };
-void _subscribeToProduct() {
+
+  void _subscribeToProduct() {
     _productSubscription = FirebaseFirestore.instance
         .collection('Product')
         .doc(widget.productId)
@@ -57,6 +58,14 @@ void _subscribeToProduct() {
           setState(() {
             if (snapshot.exists) {
               productData = snapshot.data();
+              // ตรงนี้คือจุดที่ค่า currentStepIndex ถูก override
+              if (productData?['status'] != null) {
+                log(productData?['status']);
+                setState(() {
+                  currentStepIndex =
+                      getCurrentStepIndex(productData!['status']);
+                });
+              }
               _subscribeToRider(productData?['riderId']);
             } else {
               error = 'ไม่พบข้อมูลสินค้า';
@@ -77,7 +86,6 @@ void _subscribeToProduct() {
   }
 
   void _subscribeToRider(String? riderId) {
-    // ยกเลิก subscription เดิม (ถ้ามี)
     _riderSubscription?.cancel();
 
     if (riderId == null) {
@@ -117,6 +125,7 @@ void _subscribeToProduct() {
       },
     );
   }
+
   String formatDateTime(String? dateTimeStr) {
     if (dateTimeStr == null) return 'N/A';
     try {
@@ -140,28 +149,28 @@ void _subscribeToProduct() {
     final index = shippingSteps.indexOf(status);
     return index >= 0 ? index : 0;
   }
-  
+
   @override
   void initState() {
     super.initState();
     _subscribeToProduct();
-    // Get the current rider location asynchronously
-    GeolocatorServices.getCurrentLocation().then((location) {
-      setState(() {
-        riderLocation = location;
-      });
-    });
 
-    // Get the current step index from widget's current status
-    currentStepIndex = getCurrentStepIndex(widget.currentStatus);
+    GeolocatorServices.getCurrentLocation().then((location) {
+      if (mounted) {
+        setState(() {
+          riderLocation = location;
+        });
+      }
+    });
   }
+
   @override
   void dispose() {
-    // ยกเลิก subscription เมื่อออกจากหน้าจอ
     _productSubscription?.cancel();
     _riderSubscription?.cancel();
     super.dispose();
   }
+
   Widget buildInfoSection(String title, IconData icon, List<String> details) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +281,6 @@ void _subscribeToProduct() {
   }
 
   Widget buildRiderInfo(Map<String, dynamic> riderData) {
-    log('Building Rider Info with data: $riderData');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -460,114 +468,98 @@ void _subscribeToProduct() {
             .collection('Product')
             .doc(widget.productId)
             .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+        builder: (context, productSnapshot) {
+          if (productSnapshot.hasError) {
+            return Center(child: Text('Error: ${productSnapshot.error}'));
           }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          final productData =
+              productSnapshot.data?.data() as Map<String, dynamic>?;
 
-          final data = snapshot.data?.data() as Map<String, dynamic>?;
           if (productData == null) {
             return const Center(child: Text('Product not found'));
           }
 
-          final String? riderId = productData!['riderId'] as String?;
-          log('RiderId from Product: $riderId');
+          final String? riderId = productData['riderId'] as String?;
 
           if (riderId == null) {
             return const Center(child: Text('No rider assigned yet'));
           }
 
-          if (productData!['riderLocation'] != null) {
-            final GeoPoint location = productData!['riderLocation'];
+          if (productData['riderLocation'] != null) {
+            final GeoPoint location = productData['riderLocation'];
             riderLocation = LatLng(location.latitude, location.longitude);
           }
 
-          return FutureBuilder(
-            future: GeolocatorServices
-                .getCurrentLocation(), // Wait for rider location to load
-            builder: (context, AsyncSnapshot<LatLng> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                // Show a loading spinner until location is fetched
-                return const Center(child: CircularProgressIndicator());
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(riderId)
+                .snapshots(),
+            builder: (context, riderSnapshot) {
+              if (riderSnapshot.hasError) {
+                return const Center(child: Text('Error loading rider data'));
               }
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(riderId)
-                    .snapshots(),
-                builder: (context, riderSnapshot) {
-                  if (riderSnapshot.hasError) {
-                  log('Error fetching rider data: ${riderSnapshot.error}');
-                  return const Center(child: Text('Error loading rider data'));
-                }
-                if (riderSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final riderData = riderSnapshot.data?.data() as Map<String, dynamic>?;
-                log('Rider Data: $riderData'); // เพิ่ม log เพื่อตรวจสอบข้อมูล rider
 
-                if (riderData == null) {
-                  return const Center(child: Text('Rider data not available'));
-                }
+              final riderData =
+                  riderSnapshot.data?.data() as Map<String, dynamic>?;
 
-                  return SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        if (riderData != null) buildRiderInfo(riderData),
-                        SizedBox(
-                          height: 300,
-                          child: FlutterMap(
-                            options: MapOptions(
-                              initialCenter: riderLocation,
-                              initialZoom: 15.0,
-                            ),
-                            children: [
-                              TileLayer(
-                                urlTemplate:
-                                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                subdomains: const ['a', 'b', 'c'],
+              if (riderData == null) {
+                return const Center(child: Text('Rider data not available'));
+              }
+
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    if (riderData != null) buildRiderInfo(riderData),
+                    SizedBox(
+                      height: 300,
+                      child: FlutterMap(
+                        options: MapOptions(
+                          initialCenter: riderLocation,
+                          initialZoom: 15.0,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            subdomains: const ['a', 'b', 'c'],
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: riderLocation,
+                                width: 40,
+                                height: 40,
+                                child: const Icon(
+                                  Icons.motorcycle,
+                                  color: Color(0xFF890E1C),
+                                  size: 40,
+                                ),
                               ),
-                              MarkerLayer(
-                                markers: [
-                                  Marker(
-                                    point: riderLocation,
-                                    width: 40,
-                                    height: 40,
-                                    child: const Icon(
-                                      Icons.motorcycle,
-                                      color: Color(0xFF890E1C),
-                                      size: 40,
-                                    ),
+                              if (productData['deliveryLocation'] != null)
+                                Marker(
+                                  point: LatLng(
+                                    productData['deliveryLocation'].latitude,
+                                    productData['deliveryLocation'].longitude,
                                   ),
-                                  if (productData!['deliveryLocation'] != null)
-                                    Marker(
-                                      point: LatLng(
-                                        productData!['deliveryLocation'].latitude,
-                                        productData!['deliveryLocation'].longitude,
-                                      ),
-                                      width: 40,
-                                      height: 40,
-                                      child: const Icon(
-                                        Icons.location_on,
-                                        color: Color(0xFFFFC809),
-                                        size: 40,
-                                      ),
-                                    ),
-                                ],
-                              ),
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    color: Color(0xFFFFC809),
+                                    size: 40,
+                                  ),
+                                ),
                             ],
                           ),
-                        ),
-                        buildStatusTracking(currentStepIndex),
-                        buildProductDetails(productData!),
-                      ],
+                        ],
+                      ),
                     ),
-                  );
-                },
+                    buildStatusTracking(currentStepIndex),
+                    buildProductDetails(productData),
+                  ],
+                ),
               );
             },
           );
