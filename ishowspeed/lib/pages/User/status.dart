@@ -29,9 +29,13 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
   Map<String, dynamic>? riderData;
   String? error;
   bool isLoading = true;
-
+  bool _isFollowingRider = true;
+  late MapController _mapController;
+  LatLng? _currentRiderLocation;
+  LatLng? _deliveryLocation;
+  Timer? _updateLocationTimer;
   int currentStepIndex = 0;
-  LatLng riderLocation = LatLng(13.7563, 100.5018);
+  LatLng riderLocation = const LatLng(13.7563, 100.5018);
 
   final List<String> shippingSteps = [
     'Order Placed',
@@ -153,6 +157,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
   @override
   void initState() {
     super.initState();
+    _mapController = MapController();
     _subscribeToProduct();
 
     GeolocatorServices.getCurrentLocation().then((location) {
@@ -162,12 +167,22 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
         });
       }
     });
+    // สร้าง Timer เพื่ออัปเดตตำแหน่งผู้ส่งทุก 1 วินาที
+  _updateLocationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    if (_isFollowingRider && _currentRiderLocation != null) {
+      setState(() {
+        // เลื่อนไปยังตำแหน่งผู้ส่งทุก ๆ 1 วินาที
+        _mapController.move(_currentRiderLocation!, 15.0);
+      });
+    }
+  });
   }
 
   @override
   void dispose() {
     _productSubscription?.cancel();
     _riderSubscription?.cancel();
+    _updateLocationTimer?.cancel();
     super.dispose();
   }
 
@@ -456,6 +471,159 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
     );
   }
 
+Widget buildMap(Map<String, dynamic> productData, LatLng riderLocation) {
+  _deliveryLocation = productData['deliveryLocation'] != null
+      ? LatLng(
+          productData['deliveryLocation'].latitude,
+          productData['deliveryLocation'].longitude,
+        )
+      : null;
+
+  _currentRiderLocation = riderLocation;
+  _isFollowingRider = true; // ให้เริ่มติดตามตำแหน่งผู้ส่งตั้งแต่แรก
+
+  LatLng center = _currentRiderLocation ?? riderLocation;
+  double zoom = 15.0;
+
+  return Stack(
+    children: [
+      SizedBox(
+        height: 300,
+        child: FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: zoom,
+            onMapReady: () {
+              // เลื่อนไปตำแหน่งผู้ส่งเมื่อแผนที่พร้อม
+              if (_isFollowingRider && _currentRiderLocation != null) {
+                _mapController.move(_currentRiderLocation!, zoom);
+              }
+            },
+            onPositionChanged: (position, hasGesture) {
+              if (hasGesture) {
+                setState(() => _isFollowingRider = false);
+              }
+            },
+          ),
+          children: [
+            TileLayer(
+              urlTemplate:
+                  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
+            ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: _currentRiderLocation ?? riderLocation,
+                  width: 40,
+                  height: 40,
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.motorcycle,
+                        color: Color(0xFF890E1C),
+                        size: 30,
+                      ),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF890E1C),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Rider',
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_deliveryLocation != null)
+                  Marker(
+                    point: _deliveryLocation!,
+                    width: 40,
+                    height: 40,
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          color: Color(0xFFFFC809),
+                          size: 30,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFC809),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Delivery',
+                            style:
+                                TextStyle(color: Colors.black, fontSize: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            if (_currentRiderLocation != null && _deliveryLocation != null)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: [_currentRiderLocation!, _deliveryLocation!],
+                    color: const Color(0xFF890E1C),
+                    strokeWidth: 3.0,
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+      if (_currentRiderLocation != null)
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Column(
+            children: [
+              FloatingActionButton(
+                heroTag: 'centerMap',
+                mini: true,
+                backgroundColor: Colors.white,
+                child: const Icon(Icons.center_focus_strong,
+                    color: Colors.black87),
+                onPressed: () {
+                  setState(() => _isFollowingRider = true);
+                  _mapController.move(center, zoom);
+                },
+              ),
+              if (_deliveryLocation != null) const SizedBox(height: 8),
+              if (_deliveryLocation != null)
+                FloatingActionButton(
+                  heroTag: 'showDelivery',
+                  mini: true,
+                  backgroundColor: const Color(0xFFFFC809),
+                  child: const Icon(Icons.location_on, color: Colors.black87),
+                  onPressed: () {
+                    _mapController.move(_deliveryLocation!, 15.0);
+                  },
+                ),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -512,50 +680,7 @@ class _ProductTrackingPageState extends State<ProductTrackingPage> {
                 child: Column(
                   children: [
                     if (riderData != null) buildRiderInfo(riderData),
-                    SizedBox(
-                      height: 300,
-                      child: FlutterMap(
-                        options: MapOptions(
-                          initialCenter: riderLocation,
-                          initialZoom: 15.0,
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            subdomains: const ['a', 'b', 'c'],
-                          ),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                point: riderLocation,
-                                width: 40,
-                                height: 40,
-                                child: const Icon(
-                                  Icons.motorcycle,
-                                  color: Color(0xFF890E1C),
-                                  size: 40,
-                                ),
-                              ),
-                              if (productData['deliveryLocation'] != null)
-                                Marker(
-                                  point: LatLng(
-                                    productData['deliveryLocation'].latitude,
-                                    productData['deliveryLocation'].longitude,
-                                  ),
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.location_on,
-                                    color: Color(0xFFFFC809),
-                                    size: 40,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                    buildMap(productData, riderLocation),
                     buildStatusTracking(currentStepIndex),
                     buildProductDetails(productData),
                   ],
