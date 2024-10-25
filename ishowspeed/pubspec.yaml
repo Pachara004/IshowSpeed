@@ -85,6 +85,7 @@ flutter:
     - assets/images/red_shirt.png
     - assets/images/black_shirt.png
     - assets/images/driver_avatar.png
+    - assets/images/logo.png
   # fonts:
   #   - family: CustomFont
   #     fonts:
