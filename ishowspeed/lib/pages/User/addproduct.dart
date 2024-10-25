@@ -149,59 +149,56 @@ class _AddProductPageState extends State<AddProductPage> {
           .collection('users')
           .where('phone', isEqualTo: phoneNumber)
           .get();
-
       if (querySnapshot.docs.isNotEmpty) {
         var recipientData = querySnapshot.docs.first.data();
-        log(
-            'Recipient data: $recipientData'); // ดูข้อมูลที่ได้รับจาก Firestore
+        log('Recipient data: $recipientData');
 
-        var recipientLocation = recipientData['gps']['map'];
-        log(
-            'Recipient location: $recipientLocation'); // ตรวจสอบโครงสร้าง location
+        // เข้าถึง latitude และ longitude โดยตรงจาก gps
+        if (recipientData.containsKey('gps')) {
+          var latitudeString = recipientData['gps']['latitude'];
+          var longitudeString = recipientData['gps']['longitude'];
 
-        setState(() {
-          _recipientLocation = LatLng(
-            recipientLocation['latitude'],
-            recipientLocation['longitude'],
+          // แปลงค่าจาก String เป็น double
+          double latitude = double.tryParse(latitudeString.toString()) ?? 0.0;
+          double longitude = double.tryParse(longitudeString.toString()) ?? 0.0;
+
+          // ตรวจสอบค่าที่ดึงมาได้
+          log('Latitude: $latitude, Longitude: $longitude');
+
+          // อัปเดต state ของ recipientLocation
+          setState(() {
+            _recipientLocation =
+                LatLng(latitude, longitude); // ปักหมุดที่ตำแหน่งผู้รับ
+            _recipientName = recipientData['username'];
+            _recipientPhone = phoneNumber;
+
+            // อัปเดต selectedLocationNotifier
+            selectedLocationNotifier.value = _recipientLocation;
+          });
+
+          // Logic for map controller update
+          if (isMapLoaded.value) {
+            MapController mapController = MapController();
+            mapController.move(
+                _recipientLocation!, 15.0); // เลื่อนแผนที่ไปยังตำแหน่งผู้รับ
+          }
+
+          // แสดง SnackBar เพื่อยืนยันการเลือกผู้รับ
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Selected recipient: $_recipientName ($_recipientPhone)'),
+              duration: const Duration(seconds: 2),
+            ),
           );
-          _recipientName = recipientData['username'];
-          _recipientPhone = phoneNumber;
-        });
-
-        // อัพเดทตำแหน่งที่เลือกในแผนที่
-        selectedLocationNotifier.value = _recipientLocation;
-
-        // เพิ่มการอัพเดท MapController เพื่อเลื่อนไปยังตำแหน่งของผู้รับ
-        if (isMapLoaded.value) {
-          MapController mapController = MapController();
-          mapController.move(_recipientLocation!, 15.0);
+        } else {
+          log('GPS data is missing');
         }
-
-        // แสดง SnackBar เพื่อยืนยันการเลือกผู้รับ
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Selected recipient: $_recipientName ($_recipientPhone)'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
       } else {
-        log('No recipient found'); // กรณีไม่พบผู้รับ
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recipient not found'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        log('No recipient found');
       }
     } catch (e) {
-      log('Error fetching recipient location: $e'); // พิมพ์ error ที่เกิดขึ้น
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to fetch recipient location'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      log('Error fetching recipient location: $e');
     }
   }
 
@@ -391,6 +388,7 @@ class _AddProductPageState extends State<AddProductPage> {
         child: const Icon(Icons.place, color: Colors.blue, size: 40),
       ),
     ];
+
     // แสดงตำแหน่งผู้รับ ถ้ามี
     if (_recipientLocation != null) {
       markers.add(
@@ -401,6 +399,7 @@ class _AddProductPageState extends State<AddProductPage> {
         ),
       );
     }
+
     // แสดงตำแหน่งที่เลือก ถ้าไม่ใช่ตำแหน่งเดียวกับผู้รับ
     if (selectedLocation != null &&
         (_recipientLocation == null ||
@@ -423,6 +422,8 @@ class _AddProductPageState extends State<AddProductPage> {
       _phoneController.text = selectedPhoneNumber; // อัปเดตค่าหมายเลขที่เลือก
       _recipientPhone = selectedPhoneNumber;
       // อัปเดตฟิลด์อื่นๆ ที่จำเป็น เช่น ชื่อผู้รับ
+      _recipientName = _searchResults.firstWhere((result) =>
+          result['phone'] == selectedPhoneNumber)['username']; // หาชื่อผู้รับ
     });
   }
 
@@ -538,15 +539,10 @@ class _AddProductPageState extends State<AddProductPage> {
   }
 
   void _handleRecipientSelection(int index) {
-    setState(() {
-      _recipientPhone = _searchResults[index]['phone'];
-      _recipientName = _searchResults[index]['username'];
-      _recipientPhoneController.text = _recipientPhone!;
-      _recipientNameController.text = _recipientName!;
-      _fetchRecipientLocation(_recipientPhone!);
-      _searchResults = [];
-    });
-    _fetchRecipientLocation(_recipientPhone!);
+    String selectedPhoneNumber =
+        _searchResults[index]['phone']!; // ดึงเบอร์โทรที่เลือก
+    _handlePhoneSelection(selectedPhoneNumber); // อัปเดตเบอร์โทรที่เลือก
+    _fetchRecipientLocation(selectedPhoneNumber); // ดึงตำแหน่งของผู้รับ
   }
 
   Future<String?> _getCurrentUserPhone() async {
