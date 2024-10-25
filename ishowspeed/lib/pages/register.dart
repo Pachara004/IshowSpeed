@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -37,11 +38,16 @@ class _RegisterPageState extends State<RegisterPage> {
   final MapController _mapController = MapController();
   LatLng? _currentLocation;
   List<Marker> _markers = [];
+  late Future<LatLng> _locationFuture;
+  final ValueNotifier<bool> _isMapReady = ValueNotifier<bool>(false);
+  final ValueNotifier<LatLng?> _selectedLocation = ValueNotifier<LatLng?>(null);
   @override
-    void initState() {
-      super.initState();
-      _fetchUserLocation();
-    }
+  void initState() {
+    super.initState();
+    _fetchUserLocation();
+    _locationFuture = _preloadLocation();
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -53,6 +59,17 @@ class _RegisterPageState extends State<RegisterPage> {
     _vehicleController.dispose();
     _gpsController.dispose();
     super.dispose();
+  }
+
+  Future<LatLng> _preloadLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      return LatLng(position.latitude, position.longitude);
+    } catch (e) {
+      print('Error getting location: $e');
+      // Return a default location if unable to get current position
+      return const LatLng(13.7563, 100.5018); // Default to Bangkok coordinates
+    }
   }
 
   Future<void> _fetchUserLocation() async {
@@ -673,48 +690,37 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<LatLng?> _showMapDialog(BuildContext context) async {
-    ValueNotifier<LatLng?> selectedLocationNotifier =
-        ValueNotifier<LatLng?>(null);
-    ValueNotifier<bool> isMapLoaded = ValueNotifier<bool>(false);
-    ValueNotifier<LocationData?> currentLocationNotifier =
-        ValueNotifier<LocationData?>(null);
-
-    LatLng _currentLocation =
-        await GeolocatorServices.getCurrentLocation(); // เก็บตำแหน่งปัจจุบัน
-
     return showDialog<LatLng>(
       context: context,
-      barrierDismissible: false, // ป้องกันการปิด dialog โดยการกดพื้นหลัง
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Selected Your Tee Yuu'),
+          title: const Text('Select Your Location'),
           content: SizedBox(
             width: double.maxFinite,
             height: 500,
-            child: Stack(
-              children: [
-                FutureBuilder<void>(
-                  future: Future.delayed(const Duration(
-                      milliseconds: 100)), // รอให้ dialog แสดงก่อน
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done) {
-                      return ValueListenableBuilder<LatLng?>(
-                        valueListenable: selectedLocationNotifier,
+            child: FutureBuilder<LatLng>(
+              future: _locationFuture,
+              builder: (BuildContext context, AsyncSnapshot<LatLng> snapshot) {
+                if (snapshot.connectionState == ConnectionState.done &&
+                    snapshot.hasData) {
+                  final initialLocation = snapshot.data!;
+
+                  return Stack(
+                    children: [
+                      ValueListenableBuilder<LatLng?>(
+                        valueListenable: _selectedLocation,
                         builder: (context, selectedLocation, _) {
                           return FlutterMap(
                             options: MapOptions(
-                              initialCenter: _currentLocation,
+                              initialCenter:
+                                  selectedLocation ?? initialLocation,
                               initialZoom: 15.0,
-                              onPositionChanged:
-                                  (MapCamera position, bool hasGesture) {
-                                // Load new markers when the map is moved
-                                _loadMarkersWithinBounds();
+                              onMapReady: () {
+                                _isMapReady.value = true;
                               },
                               onTap: (_, point) {
-                                selectedLocationNotifier.value = point;
-                              },
-                              onMapReady: () {
-                                isMapLoaded.value = true;
+                                _selectedLocation.value = point;
                               },
                             ),
                             children: [
@@ -733,10 +739,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                         color: Colors.blue,
                                         size: 40,
                                       ),
-                                    ),
-                                  if (selectedLocation == null)
+                                    )
+                                  else
                                     Marker(
-                                      point: _currentLocation,
+                                      point: initialLocation,
                                       child: const Icon(
                                         Icons.location_on,
                                         color: Colors.red,
@@ -748,52 +754,58 @@ class _RegisterPageState extends State<RegisterPage> {
                             ],
                           );
                         },
-                      );
-                    }
-                    return Container(
-                      color: Colors.white,
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              'กำลังโหลดแผนที่...',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
+                      ),
+                      Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: FloatingActionButton(
+                          onPressed: () {
+                            _selectedLocation.value = initialLocation;
+                          },
+                          child: const Icon(Icons.my_location),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ],
+                    ],
+                  );
+                }
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text(
+                        'Loading map...',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ยกเลิก'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
             ),
-            ValueListenableBuilder<bool>(
-              valueListenable: isMapLoaded,
-              builder: (context, loaded, _) {
-                return TextButton(
-                  onPressed: loaded
-                      ? () {
-                          final location = selectedLocationNotifier.value;
-                          if (location != null) {
-                            Navigator.of(context).pop(location);
-                          } else {
-                            Navigator.of(context).pop();
-                          }
-                        }
-                      : null,
-                  child: const Text('เลือก'),
+            FutureBuilder<LatLng>(
+              future: _locationFuture,
+              builder: (context, snapshot) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: _isMapReady,
+                  builder: (context, isReady, _) {
+                    return TextButton(
+                      onPressed: isReady && snapshot.hasData
+                          ? () {
+                              Navigator.of(dialogContext).pop(
+                                _selectedLocation.value ?? snapshot.data,
+                              );
+                            }
+                          : null,
+                      child: const Text('Select'),
+                    );
+                  },
                 );
               },
             ),
