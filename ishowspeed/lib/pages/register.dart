@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:ishowspeed/services/storage/geolocator_services.dart';
@@ -33,7 +34,14 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isObscured = true;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   File? _profileImage;
-
+  final MapController _mapController = MapController();
+  LatLng? _currentLocation;
+  List<Marker> _markers = [];
+  @override
+    void initState() {
+      super.initState();
+      _fetchUserLocation();
+    }
   @override
   void dispose() {
     _usernameController.dispose();
@@ -45,6 +53,33 @@ class _RegisterPageState extends State<RegisterPage> {
     _vehicleController.dispose();
     _gpsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchUserLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+      });
+      // Load initial markers for the current location
+      _loadMarkersWithinBounds();
+    } catch (e) {
+      print('Error getting location: $e');
+    }
+  }
+
+  void _loadMarkersWithinBounds() {
+    if (_currentLocation == null || _mapController == null) return;
+    List<Marker> newMarkers = [
+      Marker(
+        point: LatLng(_currentLocation!.latitude, _currentLocation!.longitude),
+        child: Icon(Icons.location_pin, color: Colors.red, size: 40),
+      ),
+    ];
+
+    setState(() {
+      _markers = newMarkers;
+    });
   }
 
   Future<void> _pickImage() async {
@@ -655,7 +690,7 @@ class _RegisterPageState extends State<RegisterPage> {
           title: const Text('Selected Your Tee Yuu'),
           content: SizedBox(
             width: double.maxFinite,
-            height: 400,
+            height: 500,
             child: Stack(
               children: [
                 FutureBuilder<void>(
@@ -670,8 +705,11 @@ class _RegisterPageState extends State<RegisterPage> {
                             options: MapOptions(
                               initialCenter: _currentLocation,
                               initialZoom: 15.0,
-                              minZoom: 5.0,
-                              maxZoom: 18.0,
+                              onPositionChanged:
+                                  (MapCamera position, bool hasGesture) {
+                                // Load new markers when the map is moved
+                                _loadMarkersWithinBounds();
+                              },
                               onTap: (_, point) {
                                 selectedLocationNotifier.value = point;
                               },
