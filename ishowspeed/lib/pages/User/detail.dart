@@ -23,139 +23,227 @@ class ProductDetailDialog extends StatelessWidget {
     required this.recipientLocationLat,
     required this.recipientLocationLng,
   });
-
   @override
-Widget build(BuildContext context) {
-  return Dialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF890E1C),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.95, // เกือบชิดขอบจอ
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF890E1C),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
+              spreadRadius: 2,
             ),
-            const SizedBox(height: 16),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        content: Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                        ),
-                        actions: <Widget>[
-                          TextButton(
-                            child: const Text('Close'),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                        ],
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9, // เกือบเต็มจอ
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return Dialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    child: const Text('Close'),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-                child: Image.network(
-                  imageUrl,
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.contain,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: Image.network(
+                        imageUrl,
+                        width: MediaQuery.of(context).size.width * 0.9,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            if (recipientLocationLat != null && recipientLocationLng != null)
-              SizedBox(
-                height: 200,
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(recipientLocationLat!, recipientLocationLng!),
-                    initialZoom: 15.0,
+              const SizedBox(height: 20),
+              if (recipientLocationLat != null && recipientLocationLng != null)
+                Container(
+                  height: 200,
+                  width: MediaQuery.of(context).size.width * 0.9, // เกือบเต็มจอ
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: ['a', 'b', 'c'],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: LatLng(recipientLocationLat!, recipientLocationLng!),
-                          child: const Icon(
-                            Icons.location_on,
-                            color: Colors.red,
-                            size: 40,
-                          ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(
+                            recipientLocationLat!, recipientLocationLng!),
+                        initialZoom: 15.0,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(
+                                  recipientLocationLat!, recipientLocationLng!),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
+              const SizedBox(height: 20),
+              _buildInfoSection(
+                'Sender name',
+                sender,
+                Icons.person,
+                const Color(0xFFFFD700),
               ),
-            const SizedBox(height: 16),
-
-            // ใช้การจัดกลุ่มข้อมูลด้วยฟังก์ชัน
-            _buildCenteredInfo('Sender Name', sender),
-            _buildCenteredInfo('Product Name', name),
-            _buildCenteredInfo('Product Details', details),
-            _buildCenteredInfo('Recipient Name', recipient),
-            _buildCenteredInfo('Recipient\'s Phone Number', recipientPhone),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-Widget _buildCenteredInfo(String title, String content) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12.0), // ระยะห่างระหว่างแต่ละกล่อง
-    color: const Color.fromARGB(255, 255, 255, 255),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Center(
-          child: Container(
-            // color: const Color(0xFF890E1C),
-            padding: const EdgeInsets.all(8.0), // เพิ่ม padding ให้กับข้อความ
-            child: Text(
-              title,
-              style: const TextStyle(
-                // color: Color.fromARGB(255, 255, 255, 255), // สีข้อความเป็นสีขาว
-                fontSize: 18,
-                fontWeight: FontWeight.bold, // ทำให้หัวข้อหนาขึ้น
+              const SizedBox(height: 16),
+              // ส่วนการเรียกใช้ _buildInfoSection
+              _buildInfoSection(
+                'Product Name',
+                name,
+                Icons.inventory_2, // เปลี่ยนเป็นไอคอนสินค้า
+                const Color(0xFFFFD700),
               ),
-            ),
+              const SizedBox(height: 16),
+              _buildInfoSection(
+                'Product Details',
+                details,
+                Icons.description, // เปลี่ยนเป็นไอคอนรายละเอียดสินค้า
+                const Color(0xFFFFD700),
+              ),
+
+              const SizedBox(height: 16),
+              _buildInfoSection(
+                'Recipient Name',
+                recipient,
+                Icons.person,
+                const Color(0xFFFFD700),
+              ),
+              const SizedBox(height: 16),
+              _buildInfoSection(
+                'Recipient Phone',
+                recipientPhone,
+                Icons.phone,
+                const Color(0xFFFFD700),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
-        Center(
-          child: Text(
-            content,
-            style: const TextStyle(
-              color: Color.fromARGB(255, 27, 18, 18),
-              fontSize: 20,
-            ),
+      ),
+    );
+  }
+
+// ส่วนของ _buildInfoSection
+  Widget _buildInfoSection(
+    String title,
+    String content,
+    IconData icon,
+    Color iconColor,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700).withOpacity(0.1), // สีสดใสขึ้น
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: const Color(0xFFFFD700), // สีไอคอนสดใสขึ้น
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold, // ทำให้ข้อความเข้มขึ้น
+                  color: Colors
+                      .white, // เปลี่ยนสีตัวอักษรเป็นสีขาวเพื่อให้อ่านง่าย
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                content,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white70, // ปรับสีของเนื้อหาให้อ่านง่ายขึ้น
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    ),
-  );
-}
-
+    );
+  }
 }
